@@ -32,6 +32,7 @@ HOW AGENTS USE THIS:
 
 import argparse
 import random
+import sys
 from typing import Literal
 
 # FastMCP is the Pythonic way to build MCP servers
@@ -412,6 +413,11 @@ if __name__ == "__main__":
         description="Real Estate Pricing MCP Server — supports stdio and SSE transports"
     )
     parser.add_argument(
+        "--check",
+        action="store_true",
+        help="Import check: verify server loads correctly then exit 0. No network I/O.",
+    )
+    parser.add_argument(
         "--sse",
         action="store_true",
         help="Use SSE transport instead of stdio. Runs as HTTP server."
@@ -430,10 +436,14 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    if args.sse:
+    if args.check:
+        tools = list(mcp._tool_manager._tools.keys())
+        print(f"pricing_server OK  tools={tools}")
+        sys.exit(0)
+    elif args.sse:
         # SSE mode: run as standalone HTTP server
         # Multiple agents can connect to this same server instance
-        print(f"🏠 Real Estate Pricing MCP Server (SSE mode)")
+        print(f"Real Estate Pricing MCP Server (SSE mode)")
         print(f"   Listening on: http://{args.host}:{args.port}/sse")
         print(f"   Connect via: SseServerParams(url='http://localhost:{args.port}/sse')")
         mcp.run(transport="sse", host=args.host, port=args.port)

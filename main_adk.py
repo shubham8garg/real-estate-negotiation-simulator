@@ -170,6 +170,40 @@ async def run_adk_negotiation(
     }
 
 
+async def _run_check() -> None:
+    """
+    Validate the ADK setup without making any Gemini API calls.
+
+    Checks:
+      1. GOOGLE_API_KEY is set (done by check_environment() before this runs)
+      2. All module imports succeed
+      3. MCPToolset can connect to both MCP servers and list tools
+      4. ADK agent objects can be constructed
+
+    Exits 0 on success, 1 on any failure — safe to run repeatedly
+    without consuming Gemini quota.
+    """
+    from m4_adk.buyer_adk import BuyerAgentADK
+    from m4_adk.seller_adk import SellerAgentADK
+
+    print("ADK setup check (no Gemini calls)...")
+
+    try:
+        async with BuyerAgentADK(session_id="check_buyer") as buyer:
+            print("  buyer agent + pricing MCP: OK")
+
+        async with SellerAgentADK(session_id="check_seller") as seller:
+            print("  seller agent + pricing MCP + inventory MCP: OK")
+
+        print("Setup check passed.")
+
+    except Exception as e:
+        print(f"Setup check FAILED: {e}")
+        import traceback
+        traceback.print_exc()
+        sys.exit(1)
+
+
 async def main() -> None:
     """Main entry point for the ADK version."""
 
@@ -180,11 +214,20 @@ async def main() -> None:
     parser.add_argument("--session", type=str, default=None)
     parser.add_argument("--buyer-budget", type=float, default=460_000)
     parser.add_argument("--seller-minimum", type=float, default=445_000)
+    parser.add_argument(
+        "--check",
+        action="store_true",
+        help="Validate setup (env + MCP connections) without calling Gemini. Exit 0 on success.",
+    )
     args = parser.parse_args()
 
     session_id = args.session or f"adk_{uuid.uuid4().hex[:8]}"
 
     check_environment()
+
+    if args.check:
+        await _run_check()
+        return
 
     print()
     print("╔══════════════════════════════════════════════════════════════════╗")

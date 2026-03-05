@@ -29,6 +29,7 @@ TRANSPORT:
 
 import argparse
 import random
+import sys
 from typing import Optional
 
 from mcp.server.fastmcp import FastMCP
@@ -333,6 +334,11 @@ if __name__ == "__main__":
         description="Real Estate Inventory MCP Server"
     )
     parser.add_argument(
+        "--check",
+        action="store_true",
+        help="Import check: verify server loads correctly then exit 0. No network I/O.",
+    )
+    parser.add_argument(
         "--sse",
         action="store_true",
         help="Use SSE transport (HTTP server mode)"
@@ -351,8 +357,12 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    if args.sse:
-        print(f"🏠 Real Estate Inventory MCP Server (SSE mode)")
+    if args.check:
+        tools = list(mcp._tool_manager._tools.keys())
+        print(f"inventory_server OK  tools={tools}")
+        sys.exit(0)
+    elif args.sse:
+        print(f"Real Estate Inventory MCP Server (SSE mode)")
         print(f"   Listening on: http://{args.host}:{args.port}/sse")
         mcp.run(transport="sse", host=args.host, port=args.port)
     else:
