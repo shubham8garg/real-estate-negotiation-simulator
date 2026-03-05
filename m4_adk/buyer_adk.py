@@ -29,7 +29,6 @@ HOW ADK HANDLES MCP:
 """
 
 import asyncio
-import contextlib
 import os
 import sys
 from pathlib import Path
@@ -39,7 +38,11 @@ from typing import Optional
 from google.adk.agents import LlmAgent
 from google.adk.runners import Runner
 from google.adk.sessions import InMemorySessionService
-from google.adk.tools.mcp_tool.mcp_toolset import MCPToolset, StdioServerParameters
+from google.adk.tools.mcp_tool.mcp_toolset import (
+    MCPToolset,
+    StdioConnectionParams,
+    StdioServerParameters,
+)
 
 # Re-use A2A message types from simple version
 from m3_agents.a2a_simple import A2AMessage
@@ -124,7 +127,6 @@ class BuyerAgentADK:
         self._agent: Optional[LlmAgent] = None
         self._runner: Optional[Runner] = None
         self._session_service: Optional[InMemorySessionService] = None
-        self._exit_stack = contextlib.AsyncExitStack()
         self._round = 0
 
     async def __aenter__(self) -> "BuyerAgentADK":
@@ -141,17 +143,18 @@ class BuyerAgentADK:
         # Create MCPToolset — this is the ADK's MCP integration
         # StdioServerParameters tells ADK how to spawn the MCP server
         pricing_toolset = MCPToolset(
-            connection_params=StdioServerParameters(
-                command=sys.executable,
-                args=[_PRICING_SERVER],
+            connection_params=StdioConnectionParams(
+                server_params=StdioServerParameters(
+                    command=sys.executable,
+                    args=[_PRICING_SERVER],
+                )
             )
         )
 
         # Initialize tools from the MCP server
         # ADK discovers available tools via MCP's list_tools protocol
         # These tools are then formatted as Gemini function-calling tools
-        tools, exit_stack = await pricing_toolset.async_init_tools()
-        await self._exit_stack.enter_async_context(exit_stack)
+        tools = await pricing_toolset.get_tools()
 
         # Safe tool name extraction — handles empty list without IndexError
         tool_names = [t.name for t in tools if hasattr(t, 'name')]
@@ -188,7 +191,6 @@ class BuyerAgentADK:
 
     async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
         """Clean up MCP connections."""
-        await self._exit_stack.aclose()
         print("   [Buyer ADK] MCP connections closed.")
 
     async def _run_agent(self, prompt: str) -> str:
@@ -203,7 +205,7 @@ class BuyerAgentADK:
         The agent may call MCP tools multiple times per turn before
         returning its final response. ADK handles this loop automatically.
         """
-        from google.adk.types import Content, Part
+        from google.genai.types import Content, Part
 
         content = Content(parts=[Part(text=prompt)])
 

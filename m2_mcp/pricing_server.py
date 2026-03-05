@@ -42,11 +42,7 @@ from mcp.server.fastmcp import FastMCP
 # ─── Initialize FastMCP Server ────────────────────────────────────────────────
 
 mcp = FastMCP(
-    "real-estate-pricing",
-    description=(
-        "Provides real estate market pricing data, comparable sales analysis, "
-        "and discount calculation for property negotiations in Austin, TX."
-    )
+    "real-estate-pricing"
 )
 
 

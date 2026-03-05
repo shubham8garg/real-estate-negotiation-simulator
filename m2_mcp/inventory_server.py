@@ -37,11 +37,7 @@ from mcp.server.fastmcp import FastMCP
 # ─── Initialize Server ────────────────────────────────────────────────────────
 
 mcp = FastMCP(
-    "real-estate-inventory",
-    description=(
-        "Provides real estate inventory levels, market absorption rates, "
-        "and seller constraint data for negotiation analysis in Austin, TX."
-    )
+    "real-estate-inventory"
 )
 
 

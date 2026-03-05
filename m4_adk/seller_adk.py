@@ -21,7 +21,6 @@ INFORMATION ASYMMETRY (A2A TEACHING POINT):
 """
 
 import asyncio
-import contextlib
 import os
 import sys
 from pathlib import Path
@@ -30,7 +29,11 @@ from typing import Optional
 from google.adk.agents import LlmAgent
 from google.adk.runners import Runner
 from google.adk.sessions import InMemorySessionService
-from google.adk.tools.mcp_tool.mcp_toolset import MCPToolset, StdioServerParameters
+from google.adk.tools.mcp_tool.mcp_toolset import (
+    MCPToolset,
+    StdioConnectionParams,
+    StdioServerParameters,
+)
 
 from m3_agents.a2a_simple import A2AMessage
 from m4_adk.messaging_adk import parse_seller_response, format_buyer_message_for_seller
@@ -122,7 +125,6 @@ class SellerAgentADK:
         self._agent: Optional[LlmAgent] = None
         self._runner: Optional[Runner] = None
         self._session_service: Optional[InMemorySessionService] = None
-        self._exit_stack = contextlib.AsyncExitStack()
         self._round = 0
 
     async def __aenter__(self) -> "SellerAgentADK":
@@ -137,13 +139,14 @@ class SellerAgentADK:
 
         # Toolset 1: Pricing server (shared with buyer)
         pricing_toolset = MCPToolset(
-            connection_params=StdioServerParameters(
-                command=sys.executable,
-                args=[_PRICING_SERVER],
+            connection_params=StdioConnectionParams(
+                server_params=StdioServerParameters(
+                    command=sys.executable,
+                    args=[_PRICING_SERVER],
+                )
             )
         )
-        pricing_tools, pricing_exit = await pricing_toolset.async_init_tools()
-        await self._exit_stack.enter_async_context(pricing_exit)
+        pricing_tools = await pricing_toolset.get_tools()
         pricing_names = [t.name for t in pricing_tools if hasattr(t, 'name')]
         print(f"   [Seller ADK] Pricing tools: {pricing_names if pricing_names else 'none'}")
 
@@ -151,13 +154,14 @@ class SellerAgentADK:
 
         # Toolset 2: Inventory server (seller ONLY)
         inventory_toolset = MCPToolset(
-            connection_params=StdioServerParameters(
-                command=sys.executable,
-                args=[_INVENTORY_SERVER],
+            connection_params=StdioConnectionParams(
+                server_params=StdioServerParameters(
+                    command=sys.executable,
+                    args=[_INVENTORY_SERVER],
+                )
             )
         )
-        inventory_tools, inventory_exit = await inventory_toolset.async_init_tools()
-        await self._exit_stack.enter_async_context(inventory_exit)
+        inventory_tools = await inventory_toolset.get_tools()
         inventory_names = [t.name for t in inventory_tools if hasattr(t, 'name')]
         print(f"   [Seller ADK] Inventory tools: {inventory_names if inventory_names else 'none'}")
 
@@ -193,12 +197,11 @@ class SellerAgentADK:
 
     async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
         """Clean up both MCP connections."""
-        await self._exit_stack.aclose()
         print("   [Seller ADK] MCP connections closed.")
 
     async def _run_agent(self, prompt: str) -> str:
         """Execute one agent turn and return text response."""
-        from google.adk.types import Content, Part
+        from google.genai.types import Content, Part
 
         content = Content(parts=[Part(text=prompt)])
 

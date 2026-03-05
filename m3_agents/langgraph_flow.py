@@ -41,7 +41,7 @@ USAGE:
 
 import asyncio
 import operator
-from typing import Annotated, Literal, Optional
+from typing import Annotated, Literal, Optional, TypedDict
 
 from langgraph.graph import StateGraph, END
 
@@ -56,7 +56,7 @@ from m3_agents.a2a_simple import (
 
 # ─── Shared State ─────────────────────────────────────────────────────────────
 
-class NegotiationState(dict):
+class NegotiationState(TypedDict):
     """
     The shared state for the entire LangGraph negotiation workflow.
 
@@ -79,6 +79,7 @@ class NegotiationState(dict):
     """
 
     # ── Property context (immutable) ─────────────────────────────────────────
+    session_id: str
     property_address: str
     listing_price: float
 
@@ -107,7 +108,7 @@ class NegotiationState(dict):
     # ── Accumulated history (APPEND-ONLY via reducer) ─────────────────────────
     # Each node returns {"history": [new_entry]} and LangGraph appends it
     # This gives us a complete audit trail of the negotiation
-    # history: Annotated[list[dict], operator.add]
+    history: Annotated[list[dict], operator.add]
 
     # ── Agent-level state ─────────────────────────────────────────────────────
     # These hold references to agent objects across node invocations
@@ -392,9 +393,9 @@ def create_negotiation_graph() -> StateGraph:
                                              ↓
                                             END
     """
-    # Use dict as state (simpler than TypedDict for workshop)
-    # In production, use a proper TypedDict with type annotations
-    workflow = StateGraph(dict)
+    # Use the declared state schema so LangGraph merges partial node updates
+    # instead of replacing the entire state with each node return value.
+    workflow = StateGraph(NegotiationState)
 
     # ── Add nodes ─────────────────────────────────────────────────────────────
     workflow.add_node("init", initialize_agents_node)

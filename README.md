@@ -69,8 +69,12 @@ negotiation_workshop/
 │   └── 05_google_adk_overview.md
 │
 ├── exercises/
-│   ├── exercises.md                   # 10 exercises (conceptual + coding)
+│   ├── exercises.md                   # 12 exercises (Parts A–D, conceptual + coding)
 │   └── solutions.md                   # Complete solutions with code
+│
+├── bonus/                             # BONUS — standalone runnable solutions
+│   ├── support_triage_langgraph.py    # Exercise 11: triage system (LangGraph)
+│   └── support_triage_adk.py          # Exercise 12: triage system (Google ADK)
 │
 ├── main_simple.py                     # Entry point — Module 3 (OpenAI + LangGraph)
 ├── main_adk.py                        # Entry point — Module 4 (Gemini + ADK)
@@ -401,6 +405,15 @@ python main_simple.py  # Not: python negotiation_workshop/main_simple.py
 # Install Node.js from: https://nodejs.org
 node --version && npx --version
 ```
+
+**Unicode / encoding errors on Windows (`UnicodeEncodeError`, garbled output)**
+```powershell
+# Set UTF-8 mode before running any script
+$env:PYTHONUTF8 = "1"
+$env:PYTHONIOENCODING = "utf-8"
+python main_simple.py
+```
+Or add `PYTHONUTF8=1` to your `.env` file to make it permanent.
 
 ---
 
