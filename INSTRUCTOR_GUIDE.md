@@ -8,8 +8,8 @@
 ### Environment Setup
 ```bash
 cd negotiation_workshop
-python -m venv venv
-source venv/bin/activate        # Windows: venv\Scripts\activate
+python -m venv .venv
+source .venv/bin/activate       # Windows: .venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 
 cp .env.example .env
@@ -847,6 +847,19 @@ open exercises/exercises.md     # Mac
 - Exercise 8: Add a mediator agent to LangGraph — triggers when gap > $20K and offers a split-the-difference counter
 - Exercise 9: Replace InMemorySessionService with a file-based session to make the ADK negotiation resumable
 
+**Part D (45+ min):**
+- Exercise 11: Run and extend `exercises/code_solutions/ex11_support_triage_langgraph_runner.py`
+- Exercise 12: Run and extend `exercises/code_solutions/ex12_support_triage_adk_runner.py`
+
+**Exercise 7 prerequisite (SSE):**
+```bash
+# Terminal 1
+python m2_mcp/pricing_server.py --sse --port 8001
+
+# Terminal 2
+python exercises/code_solutions/ex07_sse_client_demo.py
+```
+
 **Q&A prompts if the group is quiet:**
 - "If you had to add a third agent — a real estate attorney who reviews the final deal — where would it go in the LangGraph graph?"
 - "The seller's floor price is enforced in parse_seller_response(). Is that the right place? What are the alternatives?"
@@ -884,6 +897,15 @@ node --version      # must be 18+
 npx --version       # must work
 # If npx cache is stale:
 npx clear-npx-cache
+```
+
+### Exercise 12 fails with Gemini 429 RESOURCE_EXHAUSTED
+This usually means free-tier quota is exhausted for the active Google API project.
+
+```bash
+# Retry later, or use a key/project with available Gemini quota.
+# The script now exits with a clear quota message.
+python exercises/code_solutions/ex12_support_triage_adk_runner.py
 ```
 
 ### Windows Unicode errors in baseline

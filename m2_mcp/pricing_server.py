@@ -443,10 +443,12 @@ if __name__ == "__main__":
     elif args.sse:
         # SSE mode: run as standalone HTTP server
         # Multiple agents can connect to this same server instance
+        mcp.settings.host = args.host
+        mcp.settings.port = args.port
         print(f"Real Estate Pricing MCP Server (SSE mode)")
         print(f"   Listening on: http://{args.host}:{args.port}/sse")
         print(f"   Connect via: SseServerParams(url='http://localhost:{args.port}/sse')")
-        mcp.run(transport="sse", host=args.host, port=args.port)
+        mcp.run(transport="sse")
     else:
         # stdio mode: communicate via stdin/stdout (default)
         # Client spawns this script as a subprocess

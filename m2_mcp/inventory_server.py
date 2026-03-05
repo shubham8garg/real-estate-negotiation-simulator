@@ -362,8 +362,10 @@ if __name__ == "__main__":
         print(f"inventory_server OK  tools={tools}")
         sys.exit(0)
     elif args.sse:
+        mcp.settings.host = args.host
+        mcp.settings.port = args.port
         print(f"Real Estate Inventory MCP Server (SSE mode)")
         print(f"   Listening on: http://{args.host}:{args.port}/sse")
-        mcp.run(transport="sse", host=args.host, port=args.port)
+        mcp.run(transport="sse")
     else:
         mcp.run()

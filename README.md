@@ -70,11 +70,17 @@ negotiation_workshop/
 │
 ├── exercises/
 │   ├── exercises.md                   # 12 exercises (Parts A–D, conceptual + coding)
-│   └── solutions.md                   # Complete solutions with code
-│
-├── bonus/                             # BONUS — standalone runnable solutions
-│   ├── support_triage_langgraph.py    # Exercise 11: triage system (LangGraph)
-│   └── support_triage_adk.py          # Exercise 12: triage system (Google ADK)
+│   ├── solutions.md                   # Complete written solutions with code snippets
+│   └── code_solutions/                # Runnable code solutions (Exercises 4–12)
+│       ├── ex04_property_inspection_tool.py
+│       ├── ex05_anchoring_strategy.py
+│       ├── ex06_deadlock_detection_tool.py
+│       ├── ex07_sse_client_demo.py
+│       ├── ex08_mediator_agent.py
+│       ├── ex09_negotiation_memory.py
+│       ├── ex10_negotiation_analytics.py
+│       ├── ex11_support_triage_langgraph_runner.py
+│       └── ex12_support_triage_adk_runner.py
 │
 ├── main_simple.py                     # Entry point — Module 3 (OpenAI + LangGraph)
 ├── main_adk.py                        # Entry point — Module 4 (Gemini + ADK)
@@ -170,6 +176,20 @@ python main_simple.py
 
 # MODULE 4: ADK version (needs GOOGLE_API_KEY, free)
 python main_adk.py
+```
+
+### 7. Exercise 7 SSE Prerequisite
+
+If you run `exercises/code_solutions/ex07_sse_client_demo.py`, start the pricing MCP server in SSE mode first:
+
+```bash
+python m2_mcp/pricing_server.py --sse --port 8001
+```
+
+Then run the exercise script in another terminal:
+
+```bash
+python exercises/code_solutions/ex07_sse_client_demo.py
 ```
 
 ---

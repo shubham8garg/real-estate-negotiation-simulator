@@ -130,7 +130,7 @@ have the seller start at $495K (above listing!) with a very strong justification
 - The seller should still never go below $445,000
 - Run the simulation and observe: does the final agreed price change?
 
-**Bonus**: Also try changing the buyer to be more aggressive (start at $400K).
+**Optional extension**: Also try changing the buyer to be more aggressive (start at $400K).
 What happens to the negotiation dynamics?
 
 **Questions to answer after running**:
@@ -362,7 +362,7 @@ requirements.
 
 ### Exercise 11: Customer Support Triage — LangGraph
 
-**File to create**: `bonus/support_triage_langgraph.py`
+**File to create**: `exercises/code_solutions/ex11_support_triage_langgraph_runner.py`
 
 **State schema** (given — do not change):
 ```python
@@ -452,7 +452,7 @@ c) The negotiation graph (m3_agents) is **cyclic** (buyer -> seller -> buyer...)
 
 ### Exercise 12: Customer Support Triage — Google ADK
 
-**File to create**: `bonus/support_triage_adk.py`
+**File to create**: `exercises/code_solutions/ex12_support_triage_adk_runner.py`
 
 **Architecture** (ADK pattern — fundamentally different from LangGraph):
 
@@ -573,9 +573,9 @@ d) **Production readiness**: List three specific things you would change
 
 ---
 
-## Bonus: Research Exercises
+## Research Exercises
 
-### Bonus A: MCP Ecosystem Research
+### Research A: MCP Ecosystem Research
 Find 3 publicly available MCP servers (besides GitHub's) and for each:
 1. What tool does it connect to?
 2. What tools does it expose?
@@ -583,11 +583,11 @@ Find 3 publicly available MCP servers (besides GitHub's) and for each:
 
 Resources: https://github.com/modelcontextprotocol/servers
 
-### Bonus B: LangGraph Persistence
+### Research B: LangGraph Persistence
 Implement PostgreSQL checkpointing for the LangGraph workflow.
 Reference: LangGraph docs on `PostgresSaver`
 
-### Bonus C: ADK + Vertex AI
+### Research C: ADK + Vertex AI
 Modify the ADK version to run on Google Cloud Vertex AI instead of
 the AI Studio free tier. What changes are needed?
 

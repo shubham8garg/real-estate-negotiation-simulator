@@ -780,7 +780,7 @@ def generate_analytics_report(history: list[dict], listing_price: float) -> None
 
 ---
 
-## Bonus A: MCP Ecosystem Research — Answers
+## Research A: MCP Ecosystem Research — Answers
 
 **Notable MCP servers (as of 2025)**:
 
@@ -806,12 +806,12 @@ Full list: https://github.com/modelcontextprotocol/servers
 
 ## Exercise 11: Customer Support Triage — LangGraph Solution
 
-### Complete implementation: `bonus/support_triage_langgraph.py`
+### Complete implementation: `exercises/code_solutions/ex11_support_triage_langgraph_runner.py`
 
 ```python
 """
 Customer Support Triage System — LangGraph version.
-Run: python bonus/support_triage_langgraph.py
+Run: python exercises/code_solutions/ex11_support_triage_langgraph_runner.py
 Requires: OPENAI_API_KEY
 """
 import asyncio
@@ -1063,12 +1063,12 @@ def route_after_triage(state: SupportState) -> str:
 
 ## Exercise 12: Customer Support Triage — ADK Solution
 
-### Complete implementation: `bonus/support_triage_adk.py`
+### Complete implementation: `exercises/code_solutions/ex12_support_triage_adk_runner.py`
 
 ```python
 """
 Customer Support Triage System — Google ADK version.
-Run: python bonus/support_triage_adk.py
+Run: python exercises/code_solutions/ex12_support_triage_adk_runner.py
 Requires: GOOGLE_API_KEY
 """
 import asyncio
