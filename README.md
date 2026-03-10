@@ -77,10 +77,6 @@ negotiation_workshop/
 │       ├── google_adk_overview.md     # Reference: Google ADK overview
 │       └── langgraph_adk_a2a_comparison.md  # Reference: cross-module comparison
 │
-├── tests/                             # Test suite (no API keys needed)
-│   ├── test_fsm.py                    # FSM termination guarantee tests
-│   └── test_a2a.py                    # Module 3 message helper/schema tests
-│
 ├── exercises/
 │   ├── exercises.md                   # 12 exercises (Parts A–D, conceptual + coding)
 │   ├── solutions.md                   # Complete written solutions with code snippets
@@ -181,16 +177,7 @@ export GOOGLE_API_KEY=AIza...      # Module 4 (ADK version, FREE)
 export GITHUB_TOKEN=ghp_...        # Module 2 GitHub demo (optional)
 ```
 
-### 5. Run the Tests (no API keys needed)
-
-```bash
-pytest tests/ -v
-```
-
-All tests verify pure logic (FSM termination guarantee, A2A schema validation)
-with no LLM calls. A clean test run confirms your setup is correct.
-
-### 6. Run the Workshop Modules in Order
+### 5. Run the Workshop Modules in Order
 
 ```bash
 # MODULE 1: Watch the naive version fail (no API keys)
@@ -214,7 +201,7 @@ python m4_adk_multiagents/bonus/adk_orchestrator_agents_demo.py --check
 python m4_adk_multiagents/bonus/adk_orchestrator_agents_demo.py --run --max-iterations 3
 ```
 
-### 7. Exercise 7 SSE Prerequisite
+### 6. Exercise 7 SSE Prerequisite
 
 If you run `exercises/code_solutions/ex07_sse_client_demo.py`, start the pricing MCP server in SSE mode first:
 
