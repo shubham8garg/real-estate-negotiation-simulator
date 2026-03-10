@@ -17,7 +17,7 @@ WHAT THIS SOLVES:
   Therefore, Termination is GUARANTEED.
 
 HOW TO RUN (demo):
-  python m1_m1_baseline/state_machine.py
+  python m1_baseline/state_machine.py
 
 HOW THIS CONNECTS TO THE REST OF THE WORKSHOP:
   ┌─────────────────────────────────────────────────────────────────┐
@@ -406,7 +406,7 @@ def demo_fsm() -> None:
    same termination properties.
 
 NEXT STEP:
-  python main_simple.py   <-- Full MCP + A2A + LangGraph version
+    python m3_langgraph_multiagents/main_langgraph_multiagent.py   <-- Full MCP + typed messages + LangGraph version
     """)
 
 

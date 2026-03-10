@@ -1,6 +1,8 @@
 # 04 — LangGraph Explained
 ## Orchestrating Multi-Agent Workflows with State Machines
 
+See also: [06 — LangGraph vs Google ADK vs A2A](06_langgraph_adk_a2a_comparison.md) for a cross-framework comparison index.
+
 ---
 
 ## Table of Contents
@@ -224,6 +226,8 @@ Finer-grained nodes (one type per node) provide:
 - Easier testing — each node is a pure function you can unit-test
 
 In our workshop, `buyer_node` combines LLM + data + action into one node for simplicity. In production, you'd split these apart.
+
+Implementation note (current repo): Module 3 runs in strict planner mode for MCP — the buyer/seller agents first use GPT-4o to select MCP tool calls for the turn, and only those selected calls are executed (no automatic fallback tool calls).
 
 ### Edges — The Connections
 

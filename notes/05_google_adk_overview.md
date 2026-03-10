@@ -1,6 +1,8 @@
 # 05 — Google ADK Overview
 ## Building Production-Grade Agents with Google's Agent Development Kit
 
+See also: [06 — LangGraph vs Google ADK vs A2A](06_langgraph_adk_a2a_comparison.md) for the orchestration and interoperability comparison index.
+
 ---
 
 ## Table of Contents
@@ -372,6 +374,14 @@ negotiation_loop = LoopAgent(
     max_iterations=5,  # Our max_rounds = 5
 )
 ```
+
+In this repo's runnable orchestrator demo (`m4_adk_multiagents/adk_orchestrator_agents_demo.py`), we intentionally use this pattern with only two sub-agents (`buyer_agent`, `seller_agent`) so negotiation orchestration is explicit and easy to trace.
+
+Other orchestration patterns are still valid depending on use case:
+- `SequentialAgent`: pipeline steps like `research → validate → recommend`
+- `ParallelAgent`: independent fan-out tasks like `market analysis` and `risk analysis`
+- `LlmAgent` with `sub_agents`: dynamic routing when the model chooses which specialist to invoke
+- `BaseAgent` subclass with `_run_async_impl`: fully custom orchestration logic
 
 ---
 
@@ -753,7 +763,7 @@ seller_agent = LlmAgent(
 )
 
 # Application coordinates them
-class NegotiationOrchestrator:
+class NegotiationCoordinator:
     def __init__(self):
         self.buyer_runner = Runner(agent=buyer_agent, ...)
         self.seller_runner = Runner(agent=seller_agent, ...)
@@ -864,7 +874,7 @@ buyer_agent = LlmAgent(
 | **Generator-Critic** | Agent A drafts, Agent B reviews via state | Quality-sensitive output requiring review cycles |
 | **Iterative Refinement** | `LoopAgent` with escalation signals until quality threshold met | Negotiation, code generation, writing tasks |
 
-**In our workshop, we use the Adversarial pattern** — two independent agents (buyer and seller) coordinated by the application (`main_adk.py`). This is not a standard ADK hierarchy — the agents don't delegate to each other. The orchestrator in `main_adk.py` manages the turn loop manually.
+**In our workshop, we use the Adversarial pattern** — two independent agents (buyer and seller) coordinated by the application (`m4_adk_multiagents/main_adk_multiagent.py`). This is not a standard ADK hierarchy — the agents don't delegate to each other. The coordinator logic in `m4_adk_multiagents/main_adk_multiagent.py` manages the turn loop manually.
 
 ### Agent Hierarchy Design Principles
 
@@ -940,7 +950,7 @@ Here's how our negotiation simulator uses ADK (detailed in `m4_adk_multiagents/`
 # m4_adk_multiagents/buyer_adk.py — conceptual overview
 
 from google.adk.agents import LlmAgent
-from google.adk.tools.mcp_tool.mcp_toolset import MCPToolset, StdioServerParameters
+from google.adk.tools.mcp_tool.mcp_toolset import MCPToolset, StdioConnectionParams, StdioServerParameters
 
 BUYER_INSTRUCTION = """
 You are a real estate buyer agent for a client purchasing:
@@ -967,14 +977,16 @@ Output your response as JSON:
 }
 """
 
-async def create_buyer_agent() -> tuple[LlmAgent, list]:
+async def create_buyer_agent() -> LlmAgent:
     toolset = MCPToolset(
-        connection_params=StdioServerParameters(
-            command="python",
-            args=["m2_mcp/pricing_server.py"]
+        connection_params=StdioConnectionParams(
+            server_params=StdioServerParameters(
+                command="python",
+                args=["m2_mcp/pricing_server.py"]
+            )
         )
     )
-    tools, exit_stack = await toolset.async_init_tools()
+    tools = await toolset.get_tools()
 
     agent = LlmAgent(
         name="buyer_agent",
@@ -984,7 +996,7 @@ async def create_buyer_agent() -> tuple[LlmAgent, list]:
         tools=tools
     )
 
-    return agent, exit_stack
+    return agent
 ```
 
 ### Seller Agent (ADK Version)
@@ -1040,17 +1052,18 @@ Understanding when to use each approach:
 
 We implement both to compare:
 
-1. **Simple Python + LangGraph** (`simple_agents/`, `orchestration/`, `main_simple.py`)
+1. **Simple Python + LangGraph** (`m3_langgraph_multiagents/`, `m3_langgraph_multiagents/main_langgraph_multiagent.py`)
    - Use when learning the concepts
    - OpenAI GPT-4o
    - MCP via Python client
    - LangGraph for workflow management
 
-2. **Google ADK** (`m4_adk_multiagents/`, `main_adk.py`)
+2. **Google ADK** (`m4_adk_multiagents/`, `m4_adk_multiagents/main_adk_multiagent.py`)
    - Use when building for production
    - Gemini 2.0 Flash (free tier)
    - MCP via native MCPToolset
    - ADK handles session management
+    - Orchestration can be modeled multiple ways (Loop/Sequential/Parallel/router/custom), and this repo's dedicated orchestrator demo uses `LoopAgent` with buyer/seller agents for clarity
 
 ---
 

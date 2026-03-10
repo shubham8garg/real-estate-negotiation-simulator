@@ -12,5 +12,5 @@ Run a specific file:
 
 WHAT IS TESTED:
   test_fsm.py  — NegotiationFSM state machine (pure logic, no LLM)
-  test_a2a.py  — A2A message schema and state machine validation
+  test_a2a.py  — Module 3 negotiation message helper/schema validation
 """

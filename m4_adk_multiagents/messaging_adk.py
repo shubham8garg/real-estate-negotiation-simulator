@@ -4,19 +4,18 @@ ADK Messaging Utilities
 Communication helpers for the Google ADK version of the negotiation simulator.
 
 A2A IN ADK:
-  In the simple Python version, agents exchange A2AMessage objects directly
-  via the A2AMessageBus (in-memory queue).
+    In the simple Python version, agents exchange custom A2AMessage objects
+    via an in-memory message bus.
 
   In the ADK version, agents are stateful LlmAgents with their own session.
   "Communication" works differently:
   - Each agent runs in its own Runner with its own session
-  - The orchestrator (main_adk.py) mediates by passing the output of
-    one agent as the input to the other
-  - We still use the same A2AMessage schema for structure
+    - Coordination code passes one agent's output as the next agent's input
+    - We use an ADK-native message schema defined in this module set
 
 THIS FILE PROVIDES:
   • parse_agent_response()   — extract structured data from Gemini output
-  • format_for_agent()       — format A2AMessage into a prompt for the other agent
+    • format_for_agent()       — format ADKNegotiationMessage into a prompt for the other agent
   • NegotiationSession       — tracks ADK-version negotiation state
   • print_round_summary()    — display results
 """
@@ -25,8 +24,8 @@ import json
 import re
 from typing import Optional
 
-from m3_langgraph_multiagents.a2a_simple import (
-    A2AMessage,
+from m4_adk_multiagents.adk_a2a_types import (
+    ADKNegotiationMessage,
     NegotiationStatus,
     create_offer,
     create_counter_offer,
@@ -42,9 +41,9 @@ def parse_buyer_response(
     session_id: str,
     round_num: int,
     in_reply_to: Optional[str] = None
-) -> A2AMessage:
+) -> ADKNegotiationMessage:
     """
-    Parse Gemini's raw text response into a structured A2AMessage (buyer).
+    Parse Gemini's raw text response into a structured ADKNegotiationMessage (buyer).
 
     ADK TEACHING POINT:
     Unlike in the simple version where we use response_format=json_object,
@@ -62,7 +61,7 @@ def parse_buyer_response(
         in_reply_to: message_id of the message being replied to
 
     Returns:
-        Parsed A2AMessage or a withdrawal if parsing fails
+        Parsed ADKNegotiationMessage or a withdrawal if parsing fails
     """
     # Try to extract JSON from the response
     parsed = _extract_json(raw_response)
@@ -119,9 +118,9 @@ def parse_seller_response(
     buyer_offer_price: float,
     minimum_price: float,
     in_reply_to: Optional[str] = None
-) -> A2AMessage:
+) -> ADKNegotiationMessage:
     """
-    Parse Gemini's raw text response into a structured A2AMessage (seller).
+    Parse Gemini's raw text response into a structured ADKNegotiationMessage (seller).
 
     Args:
         raw_response: The text string returned by the ADK runner
@@ -132,7 +131,7 @@ def parse_seller_response(
         in_reply_to: message_id being replied to
 
     Returns:
-        Parsed A2AMessage
+        Parsed ADKNegotiationMessage
     """
     parsed = _extract_json(raw_response)
 
@@ -185,12 +184,12 @@ def parse_seller_response(
 
 # ─── Prompt Formatting ────────────────────────────────────────────────────────
 
-def format_seller_message_for_buyer(seller_message: A2AMessage, round_num: int) -> str:
+def format_seller_message_for_buyer(seller_message: ADKNegotiationMessage, round_num: int) -> str:
     """
     Format a seller's A2A message into a prompt string for the buyer agent.
 
     ADK TEACHING POINT:
-    In ADK, we don't have a shared message bus. Instead, the orchestrator
+    In ADK, we don't have a shared message bus. Instead, the client
     takes the seller's output and constructs a new input for the buyer.
     This is the "messaging layer" in the ADK multi-agent pattern.
     """
@@ -211,7 +210,7 @@ Remember to call get_market_price and calculate_discount before making your offe
 Respond with a JSON object containing: offer_price, message, reasoning, walk_away, walk_away_reason."""
 
 
-def format_buyer_message_for_seller(buyer_message: A2AMessage, round_num: int) -> str:
+def format_buyer_message_for_seller(buyer_message: ADKNegotiationMessage, round_num: int) -> str:
     """
     Format a buyer's A2A message into a prompt string for the seller agent.
     """
@@ -241,11 +240,11 @@ class NegotiationSession:
     ADK TEACHING POINT:
     Unlike LangGraph which has built-in shared state, the ADK version
     doesn't automatically share state between agents. We track negotiation
-    state here in the orchestrator and pass relevant information to each
+    state in client-side coordination code and pass relevant information to each
     agent via their prompt.
 
     This is a common pattern when building multi-agent systems with ADK:
-    the orchestrating code maintains a "meta-state" that coordinates
+    client coordination code maintains a "meta-state" that coordinates
     independently-running agents.
     """
 
@@ -270,9 +269,9 @@ class NegotiationSession:
         self.seller_current_counter: Optional[float] = None
         self.status: NegotiationStatus = "negotiating"
         self.agreed_price: Optional[float] = None
-        self.message_history: list[A2AMessage] = []
+        self.message_history: list[ADKNegotiationMessage] = []
 
-    def record_message(self, message: A2AMessage) -> None:
+    def record_message(self, message: ADKNegotiationMessage) -> None:
         """Record a message and update session state."""
         self.message_history.append(message)
 
@@ -322,7 +321,7 @@ class NegotiationSession:
 
 # ─── Display Utilities ────────────────────────────────────────────────────────
 
-def print_round_summary(session: NegotiationSession, message: A2AMessage) -> None:
+def print_round_summary(session: NegotiationSession, message: ADKNegotiationMessage) -> None:
     """Print a formatted summary of a negotiation round."""
     price_str = f"${message.payload.price:,.0f}" if message.payload.price else "N/A"
     agent_label = message.from_agent.upper()

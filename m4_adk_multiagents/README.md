@@ -1,7 +1,10 @@
 # Module 4 — Google ADK Version (`m4_adk_multiagents`)
 
 This folder is the **Google ADK + Gemini version** of the negotiation system.
-Compared to Module 3, the key difference is that ADK `Runner` + sessions handle each agent turn, while an orchestrator mediates exchanges.
+North star for this module: **true protocol A2A** (networked agent-to-agent) with ADK agents behind each endpoint.
+
+- Module 3: pure LangGraph state orchestration
+- Module 4: pure A2A protocol transport
 
 ---
 
@@ -19,43 +22,62 @@ Compared to Module 3, the key difference is that ADK `Runner` + sessions handle 
 
 - `messaging_adk.py`
   - ADK messaging adapter layer
-  - Parses Gemini text into `A2AMessage`
+  - Parses Gemini text into `ADKNegotiationMessage`
   - Formats incoming message context for the other agent
   - Tracks session-level negotiation state (`NegotiationSession`)
 
-- `a2a_adk_demo.py`
-  - Focused ADK A2A transcript demo (round-by-round)
-  - Best file to run if you only want to understand ADK-side A2A mediation
+- `adk_a2a_types.py`
+  - ADK-native message schema + helpers used only by Module 4
+  - Keeps Module 4 independent from Module 3 message types
+
+- `a2a_protocol_seller_server.py`
+  - True networked A2A protocol server (A2A SDK) exposing an ADK seller agent
+  - Publishes agent card + handles `message/send` over protocol transport
+
+- `a2a_protocol_buyer_client_demo.py`
+  - True networked A2A protocol client demo (A2A SDK)
+  - Uses ADK buyer output and sends it to the protocol seller endpoint
+
+- `adk_orchestrator_agents_demo.py`
+  - Compact ADK orchestrator demo using only `buyer_agent` + `seller_agent`
+  - Uses `LoopAgent` as the orchestration pattern for iterative negotiation rounds
 
 ---
 
 ## Quick mental model
 
-- If you want ADK agent setup details, start with `buyer_adk.py` and `seller_adk.py`.
-- If you want to understand “how messages move” in ADK, read `messaging_adk.py`.
-- If you want a clean demo run, use `a2a_adk_demo.py`.
+- If you want true protocol A2A, start with `a2a_protocol_seller_server.py` and `a2a_protocol_buyer_client_demo.py`.
+- If you want ADK agent setup details, read `buyer_adk.py` and `seller_adk.py`.
 
 ---
 
-## Typical run paths for Module 4
+## Typical run path for Module 4 (true A2A)
 
-Full negotiation app:
+Terminal 1:
 
-`main_adk.py`
-→ `m4_adk_multiagents/buyer_adk.py` + `m4_adk_multiagents/seller_adk.py`
-→ `m4_adk_multiagents/messaging_adk.py`
+`m4_adk_multiagents/a2a_protocol_seller_server.py`
+→ `m4_adk_multiagents/seller_adk.py`
 
-Focused ADK A2A demo:
+Terminal 2:
 
-`m4_adk_multiagents/a2a_adk_demo.py`
-→ `m4_adk_multiagents/buyer_adk.py` + `m4_adk_multiagents/seller_adk.py`
-→ `m4_adk_multiagents/messaging_adk.py`
+`m4_adk_multiagents/a2a_protocol_buyer_client_demo.py`
+→ `m4_adk_multiagents/buyer_adk.py`
 
 ---
 
 ## Run commands
 
 ```bash
-python main_adk.py
-python m4_adk_multiagents/a2a_adk_demo.py --rounds 3
+# True protocol A2A (terminal 1)
+python m4_adk_multiagents/a2a_protocol_seller_server.py --port 9102
+
+# True protocol A2A (terminal 2)
+python m4_adk_multiagents/a2a_protocol_buyer_client_demo.py --seller-url http://127.0.0.1:9102
+
+# Optional ADK runner (not protocol transport)
+python m4_adk_multiagents/main_adk_multiagent.py
+
+# Optional ADK orchestrator-agent types demo
+python m4_adk_multiagents/adk_orchestrator_agents_demo.py --check
+python m4_adk_multiagents/adk_orchestrator_agents_demo.py --run --max-iterations 3
 ```

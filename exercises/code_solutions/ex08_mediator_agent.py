@@ -9,7 +9,7 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from openai import AsyncOpenAI
-from m3_langgraph_multiagents.a2a_simple import A2AMessage
+from m3_langgraph_multiagents.negotiation_types import create_offer
 
 MEDIATOR_SYSTEM_PROMPT = """You are a neutral real estate mediator.
 Your job is to find a fair compromise when buyer and seller cannot agree.
@@ -33,7 +33,7 @@ class MediatorAgent:
         seller_final_counter: float,
         history: list[dict],
         round_num: int,
-    ) -> A2AMessage:
+    ) -> dict:
         midpoint = (buyer_final_offer + seller_final_counter) / 2
         user_message = f"""
 Negotiation has stalled. Propose a fair settlement.
@@ -56,17 +56,11 @@ Full history:
         )
         decision = json.loads(response.choices[0].message.content)
         proposed = float(decision.get("proposed_price", midpoint))
-        return A2AMessage(
+        return create_offer(
             session_id=self.session_id,
-            from_agent="buyer",
-            to_agent="seller",
-            round=round_num,
-            message_type="OFFER",
-            payload={
-                "price": proposed,
-                "message": f"[MEDIATOR PROPOSAL] {decision.get('message_to_both', '')}",
-                "conditions": ["Mediator-proposed settlement — accept or decline"],
-            },
+            round_num=round_num,
+            price=proposed,
+            message=f"[MEDIATOR PROPOSAL] {decision.get('message_to_both', '')}",
         )
 
 

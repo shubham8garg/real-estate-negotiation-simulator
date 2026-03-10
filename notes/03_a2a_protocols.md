@@ -560,9 +560,9 @@ LangGraph **is** a state machine — but for entire multi-step workflows with co
 
 **Run the baseline to see both sides:**
 ```bash
-python m1_m1_baseline/naive_negotiation.py   # ← See the while True problem
-python m1_m1_baseline/state_machine.py       # ← See the FSM fix
-python main_simple.py                  # ← See LangGraph apply the same principle at scale
+python m1_baseline/naive_negotiation.py   # ← See the while True problem
+python m1_baseline/state_machine.py       # ← See the FSM fix
+python m3_langgraph_multiagents/main_langgraph_multiagent.py                  # ← See LangGraph apply the same principle at scale
 ```
 
 ---
@@ -700,7 +700,9 @@ error_msg = A2AMessage(
 
 ## 9. Implementing A2A in Python
 
-See the full implementation in `m3_langgraph_multiagents/a2a_simple.py`. Here's the core pattern:
+For Module 3 message structure, see `m3_langgraph_multiagents/negotiation_types.py`.
+For true protocol transport, see Module 4 (`m4_adk_multiagents/a2a_protocol_*`).
+Here's the core in-process routing pattern for learning:
 
 ### Message Router
 
@@ -773,21 +775,23 @@ async def run_negotiation():
     return bus.history
 ```
 
-### 9.1 Google ADK A2A Demo in This Repo
+### 9.1 Google ADK True A2A Demo in This Repo
 
-If you want the **Google ADK version** of A2A (not the in-memory `A2AMessageBus` in module 3), run:
+If you want the **Google ADK true protocol A2A** version in this repo, run:
 
 ```bash
-python m4_adk_multiagents/a2a_adk_demo.py --rounds 3
+python m4_adk_multiagents/a2a_protocol_seller_server.py --port 9102
+python m4_adk_multiagents/a2a_protocol_buyer_client_demo.py --seller-url http://127.0.0.1:9102
 ```
 
 What this demonstrates:
 - Buyer and seller are both ADK `LlmAgent`-based agents
-- The orchestrator mediates round-by-round message passing between ADK sessions
-- Message structure is still enforced with the shared `A2AMessage` schema
+- Communication happens over networked A2A JSON-RPC transport
+- Seller endpoint publishes an A2A agent card for discovery
 
 Key files:
-- `m4_adk_multiagents/a2a_adk_demo.py` (focused ADK A2A demo runner)
+- `m4_adk_multiagents/a2a_protocol_seller_server.py` (A2A protocol seller endpoint)
+- `m4_adk_multiagents/a2a_protocol_buyer_client_demo.py` (A2A protocol buyer client)
 - `m4_adk_multiagents/buyer_adk.py` and `m4_adk_multiagents/seller_adk.py` (ADK agents)
 - `m4_adk_multiagents/messaging_adk.py` (ADK-side message formatting/parsing layer)
 

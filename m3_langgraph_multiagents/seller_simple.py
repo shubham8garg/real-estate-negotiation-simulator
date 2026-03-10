@@ -34,8 +34,8 @@ from openai import AsyncOpenAI
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 
-from m3_langgraph_multiagents.a2a_simple import (
-    A2AMessage,
+from m3_langgraph_multiagents.negotiation_types import (
+    NegotiationMessage,
     create_counter_offer,
     create_acceptance,
 )
@@ -98,6 +98,27 @@ CRITICAL RULES:
   - If buyer offers ${MINIMUM_PRICE:,} or more, set accept: true immediately
   - Emphasize the $75,000 in recent renovations in EVERY response
   - Be firm but professional — don't be insulted by low offers"""
+
+SELLER_MCP_PLANNER_PROMPT = """You are selecting MCP tools for a seller negotiation agent.
+
+Return strict JSON in this format:
+{
+    "tool_calls": [
+        {"tool": "<tool_name>", "arguments": { ... }}
+    ]
+}
+
+Available tools and required arguments:
+- get_market_price: {"address": "string", "property_type": "single_family|condo|townhouse"}
+- get_inventory_level: {"zip_code": "string"}
+- get_minimum_acceptable_price: {"property_id": "string"}
+
+Rules:
+- Call 2-3 tools only.
+- Prefer including get_minimum_acceptable_price to confirm seller floor.
+- Never invent tools outside this list.
+- Output JSON only.
+"""
 
 
 # ─── MCP Helpers ──────────────────────────────────────────────────────────────
@@ -217,7 +238,99 @@ class SellerAgent:
 
         return json.loads(reply_content)
 
-    async def respond_to_offer(self, buyer_message: A2AMessage) -> A2AMessage:
+    async def _plan_mcp_tool_calls(self, planning_context: str) -> list[dict]:
+        """Ask the LLM which seller MCP tools to invoke this round."""
+        response = await self.client.chat.completions.create(
+            model=OPENAI_MODEL,
+            messages=[
+                {"role": "system", "content": SELLER_MCP_PLANNER_PROMPT},
+                {"role": "user", "content": planning_context},
+            ],
+            response_format={"type": "json_object"},
+            temperature=0.0,
+        )
+
+        content = response.choices[0].message.content
+        parsed = json.loads(content)
+        tool_calls = parsed.get("tool_calls", [])
+
+        allowed_tools = {
+            "get_market_price",
+            "get_inventory_level",
+            "get_minimum_acceptable_price",
+        }
+        valid_calls: list[dict] = []
+
+        for call in tool_calls:
+            tool = call.get("tool")
+            arguments = call.get("arguments", {})
+            if tool in allowed_tools and isinstance(arguments, dict):
+                valid_calls.append({"tool": tool, "arguments": arguments})
+
+        return valid_calls[:3]
+
+    async def _gather_mcp_context_via_llm(self, buyer_price: float) -> tuple[dict, dict, dict]:
+        """Use strict LLM planning to decide seller MCP calls (no auto-fallback calls)."""
+        planning_context = (
+            f"Property: {PROPERTY_ADDRESS}\n"
+            f"Property ID: {PROPERTY_ID}\n"
+            f"Listing price: {LISTING_PRICE}\n"
+            f"Current buyer offer: {buyer_price}\n"
+            "Need market condition, inventory pressure, and seller floor constraints for response strategy."
+        )
+
+        market_data: dict = {}
+        inventory_data: dict = {}
+        constraints: dict = {}
+
+        tool_to_server = {
+            "get_market_price": PRICING_SERVER_PATH,
+            "get_inventory_level": INVENTORY_SERVER_PATH,
+            "get_minimum_acceptable_price": INVENTORY_SERVER_PATH,
+        }
+
+        try:
+            planned_calls = await self._plan_mcp_tool_calls(planning_context)
+            if planned_calls:
+                print(f"   [Seller] LLM planned MCP calls: {[c['tool'] for c in planned_calls]}")
+
+            for call in planned_calls:
+                tool = call["tool"]
+                raw_args = call["arguments"]
+                server_path = tool_to_server[tool]
+
+                if tool == "get_market_price":
+                    args = {
+                        "address": raw_args.get("address", PROPERTY_ADDRESS),
+                        "property_type": raw_args.get("property_type", "single_family"),
+                    }
+                elif tool == "get_inventory_level":
+                    args = {"zip_code": raw_args.get("zip_code", "78701")}
+                else:
+                    args = {"property_id": raw_args.get("property_id", PROPERTY_ID)}
+
+                print(f"   [Seller] Calling MCP (LLM-planned): {tool}...")
+                result = await call_mcp_server(server_path, tool, args)
+
+                if tool == "get_market_price":
+                    market_data = result
+                elif tool == "get_inventory_level":
+                    inventory_data = result
+                elif tool == "get_minimum_acceptable_price":
+                    constraints = result
+
+            if not planned_calls:
+                print("   [Seller] LLM planned no MCP calls for this round")
+
+        except Exception as planner_error:
+            print(f"   [Seller] MCP planner error (continuing without MCP calls): {planner_error}")
+
+        self._market_data = market_data
+        self._inventory_data = inventory_data
+        self._seller_constraints = constraints
+        return market_data, inventory_data, constraints
+
+    async def respond_to_offer(self, buyer_message: NegotiationMessage) -> NegotiationMessage:
         """
         Respond to a buyer's offer.
 
@@ -228,16 +341,16 @@ class SellerAgent:
         3. Gets its floor price (which buyer doesn't know)
         4. Asks GPT-4o to formulate the best counter
 
-        A2A TEACHING POINT:
-        The seller reads the buyer's A2AMessage for:
-        - payload.price: the offer amount
-        - payload.message: the buyer's justification
-        - payload.conditions: what contingencies buyer wants
+        LangGraph state point:
+        The seller reads the buyer's latest message dict for:
+        - price: the offer amount
+        - message: the buyer's justification
+        - conditions: what contingencies buyer wants
         - round: how many rounds remain
         """
-        self.round = buyer_message.round
-        self._last_buyer_message_id = buyer_message.message_id
-        buyer_price = buyer_message.payload.price or 0
+        self.round = buyer_message["round"]
+        self._last_buyer_message_id = buyer_message["message_id"]
+        buyer_price = buyer_message.get("price") or 0
 
         print(f"\n[Seller] Round {self.round}: Received offer ${buyer_price:,.0f}")
 
@@ -257,10 +370,10 @@ class SellerAgent:
                 in_reply_to=self._last_buyer_message_id
             )
 
-        # Step 1: Gather intelligence via MCP
-        market_data = await self._get_market_data()
-        inventory_data = await self._get_inventory_data()
-        constraints = await self._get_seller_constraints()
+        # Step 1: Let LLM decide which MCP tools to invoke this round
+        market_data, inventory_data, constraints = await self._gather_mcp_context_via_llm(
+            buyer_price=float(buyer_price)
+        )
 
         # Step 2: Build context for GPT-4o
         pricing_data = constraints.get("pricing_constraints", {})
@@ -272,11 +385,11 @@ class SellerAgent:
         user_message = f"""
 You are responding to a buyer's offer on {PROPERTY_ADDRESS}.
 
-BUYER'S OFFER (from A2A message):
+BUYER'S OFFER (from shared LangGraph state):
   Price: ${buyer_price:,.0f}
-  Conditions: {buyer_message.payload.conditions}
-  Closing timeline: {buyer_message.payload.closing_timeline_days} days
-  Buyer's justification: "{buyer_message.payload.message}"
+Conditions: {buyer_message.get('conditions', [])}
+Closing timeline: {buyer_message.get('closing_timeline_days')} days
+Buyer's justification: "{buyer_message.get('message', '')}"
 
 MARKET INTELLIGENCE (from MCP servers):
   Market type: {market_type}

@@ -35,7 +35,7 @@ from google.adk.tools.mcp_tool.mcp_toolset import (
     StdioServerParameters,
 )
 
-from m3_langgraph_multiagents.a2a_simple import A2AMessage
+from m4_adk_multiagents.adk_a2a_types import ADKNegotiationMessage
 from m4_adk_multiagents.messaging_adk import parse_seller_response, format_buyer_message_for_seller
 
 # Absolute paths to MCP servers
@@ -223,7 +223,7 @@ class SellerAgentADK:
 
         return final_response
 
-    async def respond_to_offer(self, buyer_message: A2AMessage) -> A2AMessage:
+    async def respond_to_offer(self, buyer_message: ADKNegotiationMessage) -> ADKNegotiationMessage:
         """
         Respond to a buyer's offer.
 
@@ -234,7 +234,7 @@ class SellerAgentADK:
 
         print(f"\n[Seller ADK] Round {self._round}: Responding to offer ${buyer_price:,.0f}...")
 
-        # Format buyer's A2A message as prompt
+        # Format buyer's ADK message as prompt
         prompt = format_buyer_message_for_seller(buyer_message, self._round)
 
         # Add explicit instruction to use all tools

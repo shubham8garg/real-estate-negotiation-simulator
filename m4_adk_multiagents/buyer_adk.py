@@ -44,8 +44,7 @@ from google.adk.tools.mcp_tool.mcp_toolset import (
     StdioServerParameters,
 )
 
-# Re-use A2A message types from simple version
-from m3_langgraph_multiagents.a2a_simple import A2AMessage
+from m4_adk_multiagents.adk_a2a_types import ADKNegotiationMessage
 from m4_adk_multiagents.messaging_adk import parse_buyer_response, format_seller_message_for_buyer
 
 # Absolute path to pricing server — safe regardless of working directory
@@ -228,7 +227,7 @@ class BuyerAgentADK:
 
         return final_response
 
-    async def make_initial_offer(self) -> A2AMessage:
+    async def make_initial_offer(self) -> ADKNegotiationMessage:
         """Make the opening offer via ADK agent."""
         self._round = 1
         print(f"\n[Buyer ADK] Round {self._round}: Making initial offer...")
@@ -246,7 +245,7 @@ This is Round 1 of 5. Make a strong opening offer backed by market data."""
         raw_response = await self._run_agent(prompt)
         print(f"   [Buyer ADK] Raw response length: {len(raw_response)} chars")
 
-        # Parse the response into an A2AMessage
+        # Parse the response into an ADKNegotiationMessage
         message = parse_buyer_response(
             raw_response=raw_response,
             session_id=self.session_id,
@@ -256,7 +255,7 @@ This is Round 1 of 5. Make a strong opening offer backed by market data."""
         print(f"   [Buyer ADK] Offer: ${message.payload.price:,.0f}")
         return message
 
-    async def respond_to_counter(self, seller_message: A2AMessage) -> A2AMessage:
+    async def respond_to_counter(self, seller_message: ADKNegotiationMessage) -> ADKNegotiationMessage:
         """Respond to a seller counter-offer."""
         self._round = seller_message.round
         print(f"\n[Buyer ADK] Round {self._round}: Responding to counter ${seller_message.payload.price:,.0f}...")

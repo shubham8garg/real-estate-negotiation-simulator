@@ -10,8 +10,8 @@ A **4-hour hands-on workshop** teaching modern AI agent frameworks through a con
 | Concept | What It Is | How We Use It |
 |---|---|---|
 | **MCP** | Standard protocol for agents to access external tools | Agents query pricing/inventory servers via MCP |
-| **A2A** | Agent-to-Agent communication patterns | Buyer and seller exchange structured negotiation messages |
-| **LangGraph** | Stateful multi-agent workflow orchestration | Manages the 5-round negotiation loop |
+| **A2A** | Agent-to-Agent communication patterns | Module 4 uses true networked A2A protocol transport (`a2a-sdk`) |
+| **LangGraph** | Stateful multi-agent workflow orchestration | Module 3 is pure LangGraph state-driven multi-agent workflow |
 | **Google ADK** | Production-grade agent framework | Alternative implementation using Gemini |
 
 ---
@@ -46,9 +46,9 @@ negotiation_workshop/
 │   ├── pricing_server.py              # Custom MCP: market pricing tools
 │   └── inventory_server.py            # Custom MCP: inventory + seller constraints
 │
-├── m3_langgraph_multiagents/                         # MODULE 3 — A2A messaging + LangGraph
+├── m3_langgraph_multiagents/                         # MODULE 3 — Pure LangGraph multi-agent workflow
 │   ├── README.md                      # File-by-file guide for Module 3
-│   ├── a2a_simple.py                  # A2A message schema + message bus
+│   ├── negotiation_types.py           # Internal state/message types for LangGraph
 │   ├── buyer_simple.py                # Buyer agent (OpenAI GPT-4o)
 │   ├── seller_simple.py               # Seller agent (OpenAI GPT-4o)
 │   └── langgraph_flow.py              # LangGraph negotiation workflow
@@ -56,20 +56,23 @@ negotiation_workshop/
 ├── m4_adk_multiagents/                            # MODULE 4 — Google ADK + Gemini
 │   ├── README.md                      # File-by-file guide for Module 4
 │   ├── messaging_adk.py               # ADK response parsing + session tracking
+│   ├── adk_a2a_types.py               # Module 4 ADK-native message model
 │   ├── buyer_adk.py                   # Buyer agent (Gemini 2.0 Flash via ADK)
 │   ├── seller_adk.py                  # Seller agent (Gemini 2.0 Flash via ADK)
-│   └── a2a_adk_demo.py                # Focused ADK A2A exchange demo
+│   ├── a2a_protocol_seller_server.py  # True networked A2A protocol server (A2A SDK)
+│   └── a2a_protocol_buyer_client_demo.py # True networked A2A protocol client demo
 │
 ├── tests/                             # Test suite (no API keys needed)
 │   ├── test_fsm.py                    # FSM termination guarantee tests
-│   └── test_a2a.py                    # A2A schema + state machine tests
+│   └── test_a2a.py                    # Module 3 message helper/schema tests
 │
 ├── notes/                             # Reference documentation
 │   ├── 01_agents_fundamentals.md
 │   ├── 02_mcp_deep_dive.md
 │   ├── 03_a2a_protocols.md
 │   ├── 04_langgraph_explained.md
-│   └── 05_google_adk_overview.md
+│   ├── 05_google_adk_overview.md
+│   └── 06_langgraph_adk_a2a_comparison.md
 │
 ├── exercises/
 │   ├── exercises.md                   # 12 exercises (Parts A–D, conceptual + coding)
@@ -85,8 +88,8 @@ negotiation_workshop/
 │       ├── ex11_support_triage_langgraph_runner.py
 │       └── ex12_support_triage_adk_runner.py
 │
-├── main_simple.py                     # Entry point — Module 3 (OpenAI + LangGraph)
-├── main_adk.py                        # Entry point — Module 4 (Gemini + ADK)
+├── m3_langgraph_multiagents/main_langgraph_multiagent.py                     # Entry point — Module 3 (OpenAI + LangGraph)
+├── m4_adk_multiagents/main_adk_multiagent.py                        # Entry point — Module 4 (Gemini + ADK)
 ├── INSTRUCTOR_GUIDE.md                # 4-hour workshop script for instructors
 ├── .env.example                       # Copy to .env and add your API keys
 └── requirements.txt
@@ -96,7 +99,7 @@ If module files feel overwhelming, start with:
 - `m3_langgraph_multiagents/README.md` for Module 3 file roles and flow
 - `m4_adk_multiagents/README.md` for Module 4 (ADK) file roles and flow
 
-### Why 4 modules but 5 notes?
+### Why 4 modules but 6 notes?
 
 The notes are reference guides, not a strict 1:1 module count.
 
@@ -104,10 +107,12 @@ The notes are reference guides, not a strict 1:1 module count.
 |---|---|---|---|
 | M1 | `m1_baseline/` | `notes/01_agents_fundamentals.md` | Foundation concepts used by all later modules |
 | M2 | `m2_mcp/` | `notes/02_mcp_deep_dive.md` | MCP protocol and tool integration |
-| M3 | `m3_langgraph_multiagents/` | `notes/03_a2a_protocols.md` + `notes/04_langgraph_explained.md` | Module 3 has two core topics: A2A messaging and LangGraph orchestration |
-| M4 | `m4_adk_multiagents/` | `notes/05_google_adk_overview.md` | ADK-specific architecture and runtime patterns |
+| M3 | `m3_langgraph_multiagents/` | `notes/04_langgraph_explained.md` | Pure LangGraph orchestration with shared TypedDict state |
+| M4 | `m4_adk_multiagents/` | `notes/03_a2a_protocols.md` + `notes/05_google_adk_overview.md` | True A2A protocol transport + ADK runtime |
 
-So the extra note exists because Module 3 is intentionally split into two teachable concepts.
+So the extra note exists because Module 4 now spans both A2A protocol and ADK runtime topics.
+
+`notes/06_langgraph_adk_a2a_comparison.md` is a cross-cutting synthesis note comparing orchestration models and how A2A complements both.
 
 ---
 
@@ -192,11 +197,14 @@ python m2_mcp/pricing_server.py           # Run MCP server standalone (stdio)
 python m2_mcp/pricing_server.py --sse --port 8001  # SSE transport mode
 
 # MODULE 3: Full simple version (needs OPENAI_API_KEY)
-python main_simple.py
+python m3_langgraph_multiagents/main_langgraph_multiagent.py
 
 # MODULE 4: ADK version (needs GOOGLE_API_KEY, free)
-python main_adk.py
-python m4_adk_multiagents/a2a_adk_demo.py --rounds 3  # focused ADK A2A exchange demo
+python m4_adk_multiagents/main_adk_multiagent.py
+python m4_adk_multiagents/adk_orchestrator_agents_demo.py --check
+python m4_adk_multiagents/adk_orchestrator_agents_demo.py --run --max-iterations 3
+python m4_adk_multiagents/a2a_protocol_seller_server.py --port 9102
+python m4_adk_multiagents/a2a_protocol_buyer_client_demo.py --seller-url http://127.0.0.1:9102
 ```
 
 ### 7. Exercise 7 SSE Prerequisite
@@ -220,7 +228,7 @@ python exercises/code_solutions/ex07_sse_client_demo.py
 ### Simple Version Flow
 
 ```
-python main_simple.py
+python m3_langgraph_multiagents/main_langgraph_multiagent.py
     │
     └── m3_langgraph_multiagents/langgraph_flow.py
           │
@@ -228,26 +236,27 @@ python main_simple.py
           │
           ├── buyer_node (async)
           │     ├── BuyerAgent.make_initial_offer()
-          │     │     ├── MCP call → m2_mcp/pricing_server.py → get_market_price()
-          │     │     ├── MCP call → m2_mcp/pricing_server.py → calculate_discount()
+            │     │     ├── GPT-4o planner selects MCP tool(s) for this turn
+            │     │     ├── MCP call(s) execute only for selected tool(s)
           │     │     └── OpenAI GPT-4o → decide offer price
           │     └── Returns A2AMessage (OFFER) → stored in LangGraph state
           │
           └── seller_node (async)
                 ├── SellerAgent.respond_to_offer()
-                │     ├── MCP call → m2_mcp/pricing_server.py → get_market_price()
-                │     ├── MCP call → m2_mcp/inventory_server.py → get_inventory_level()
-                │     ├── MCP call → m2_mcp/inventory_server.py → get_minimum_acceptable_price()
+                │     ├── GPT-4o planner selects MCP tool(s) for this turn
+                │     ├── MCP call(s) execute only for selected tool(s)
                 │     └── OpenAI GPT-4o → decide counter-offer
                 └── Returns A2AMessage (COUNTER_OFFER) → stored in LangGraph state
 ```
 
+    Note: Module 3 currently runs in strict planner mode — MCP tools are invoked only when explicitly selected by the LLM planner for that round.
+
 ### ADK Version Flow
 
 ```
-python main_adk.py
+python m4_adk_multiagents/main_adk_multiagent.py
     │
-    └── run_adk_negotiation() [manual orchestrator loop]
+    └── run_adk_negotiation() [manual coordination loop]
           │
           ├── BuyerAgentADK (async context manager)
           │     ├── MCPToolset → m2_mcp/pricing_server.py (discovers tools)
@@ -302,8 +311,8 @@ See `INSTRUCTOR_GUIDE.md` for the full 4-hour script, talking points, and debrie
 | 0:15–1:05 | M1 | Why naive agents break + FSM fix | `m1_baseline/` |
 | 1:05–1:30 | M2 | MCP with GitHub | `m2_mcp/github_demo_client.py` |
 | 1:30–2:15 | M2 | Custom MCP servers | `m2_mcp/pricing_server.py` |
-| 2:15–3:15 | M3 | A2A + LangGraph + full simple run | `m3_langgraph_multiagents/`, `main_simple.py` |
-| 3:15–3:40 | M4 | Google ADK + Gemini | `m4_adk_multiagents/`, `main_adk.py` |
+| 2:15–3:15 | M3 | Pure LangGraph multi-agent flow + full simple run | `m3_langgraph_multiagents/`, `m3_langgraph_multiagents/main_langgraph_multiagent.py` |
+| 3:15–3:40 | M4 | Google ADK + true A2A protocol demos | `m4_adk_multiagents/`, `m4_adk_multiagents/main_adk_multiagent.py` |
 | 3:40–4:00 | Wrap | Exercises + Q&A | `exercises/exercises.md` |
 
 ---
@@ -404,7 +413,7 @@ See `exercises/solutions.md` for the complete mediator implementation.
 
 | File | Key Class/Function | What It Does |
 |---|---|---|
-| `a2a_simple.py` | `A2AMessage`, `A2AMessageBus` | A2A message schema and routing |
+| `negotiation_types.py` | `create_offer`, `create_counter_offer`, `create_acceptance` | Module 3 typed negotiation message builders |
 | `buyer_simple.py` | `BuyerAgent` | GPT-4o buyer with MCP tool calls |
 | `seller_simple.py` | `SellerAgent` | GPT-4o seller with dual MCP servers |
 | `pricing_server.py` | `get_market_price`, `calculate_discount` | MCP pricing tools |
@@ -412,7 +421,7 @@ See `exercises/solutions.md` for the complete mediator implementation.
 | `langgraph_flow.py` | `create_negotiation_graph`, `run_negotiation` | LangGraph workflow |
 | `buyer_adk.py` | `BuyerAgentADK` | ADK buyer with MCPToolset |
 | `seller_adk.py` | `SellerAgentADK` | ADK seller with dual MCPToolsets |
-| `messaging_adk.py` | `NegotiationSession`, `parse_*` | ADK A2A utilities |
+| `messaging_adk.py` | `NegotiationSession`, `parse_*` | ADK message parsing/session utilities |
 
 ---
 
@@ -438,7 +447,7 @@ export GOOGLE_API_KEY=AIza-your-actual-key
 ```bash
 # Run from the negotiation_workshop/ directory
 cd negotiation_workshop
-python main_simple.py  # Not: python negotiation_workshop/main_simple.py
+python m3_langgraph_multiagents/main_langgraph_multiagent.py  # Not: python negotiation_workshop/m3_langgraph_multiagents/main_langgraph_multiagent.py
 ```
 
 **GitHub MCP demo fails with `command not found: npx`**
@@ -452,7 +461,7 @@ node --version && npx --version
 # Set UTF-8 mode before running any script
 $env:PYTHONUTF8 = "1"
 $env:PYTHONIOENCODING = "utf-8"
-python main_simple.py
+python m3_langgraph_multiagents/main_langgraph_multiagent.py
 ```
 Or add `PYTHONUTF8=1` to your `.env` file to make it permanent.
 

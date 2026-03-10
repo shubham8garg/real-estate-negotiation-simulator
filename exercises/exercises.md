@@ -112,7 +112,7 @@ def get_property_inspection_report(property_id: str, inspection_type: str = "sta
     pass
 ```
 
-**Verification**: Run `python main_simple.py` and observe the buyer referencing inspection data in its offers.
+**Verification**: Run `python m3_langgraph_multiagents/main_langgraph_multiagent.py` and observe the buyer referencing inspection data in its offers.
 
 ---
 
@@ -318,8 +318,8 @@ $410K |
       Round:    1      2      3      4
 
 MCP TOOL USAGE:
-  Buyer: get_market_price ×5, calculate_discount ×5
-  Seller: get_market_price ×4, get_inventory_level ×4, get_minimum_acceptable_price ×1
+   Buyer: (example) get_market_price ×N, calculate_discount ×M
+   Seller: (example) get_market_price ×A, get_inventory_level ×B, get_minimum_acceptable_price ×C
 
 OUTCOME PREDICTION (Round 3):
   Gap at start of round 3: $18,000 (buyer 438K, seller 456K)
@@ -327,6 +327,21 @@ OUTCOME PREDICTION (Round 3):
   Predicted rounds to agreement: 1.5 → Agreement likely in round 4-5
   Actual: Agreement reached in round 4 ✓
 ```
+
+Note: MCP call counts are runtime-dependent. In this workshop's current architecture,
+Module 3 uses strict LLM-selected MCP calls, so tool counts may vary between runs.
+
+**Comparison prompt (add to your analysis):** Compare observed MCP selection behavior in:
+- Module 3 (LangGraph + strict LLM planner selecting tools)
+- Module 4 (ADK `LlmAgent` + `MCPToolset` autonomous tool loop)
+
+Describe what is similar, what differs, and which model was easier to reason about for your run.
+
+**Mini-rubric (10 points):**
+- **Runtime evidence (3 pts):** Uses actual run logs or observed traces, not assumptions
+- **Technical accuracy (3 pts):** Correctly explains M3 strict planner-selected calls vs M4 ADK autonomous tool loop
+- **Comparison quality (2 pts):** Identifies at least one similarity and one concrete difference
+- **Reasoning clarity (2 pts):** States which model was easier to reason about and why
 
 ---
 

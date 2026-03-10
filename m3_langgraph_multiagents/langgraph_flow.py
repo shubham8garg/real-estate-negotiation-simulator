@@ -47,11 +47,7 @@ from langgraph.graph import StateGraph, END
 
 from m3_langgraph_multiagents.buyer_simple import BuyerAgent
 from m3_langgraph_multiagents.seller_simple import SellerAgent
-from m3_langgraph_multiagents.a2a_simple import (
-    A2AMessage,
-    A2AMessageBus,
-    NegotiationStatus,
-)
+from m3_langgraph_multiagents.negotiation_types import NegotiationStatus
 
 
 # ─── Shared State ─────────────────────────────────────────────────────────────
@@ -99,11 +95,11 @@ class NegotiationState(TypedDict):
     status: NegotiationStatus
     agreed_price: Optional[float]
 
-    # ── Last A2A message (for routing) ────────────────────────────────────────
+    # ── Last negotiation message (for routing) ───────────────────────────────
     # These hold the most recent message from each agent
     # Used to pass information between nodes
-    last_buyer_message: Optional[dict]  # A2AMessage.dict()
-    last_seller_message: Optional[dict]  # A2AMessage.dict()
+    last_buyer_message: Optional[dict]
+    last_seller_message: Optional[dict]
 
     # ── Accumulated history (APPEND-ONLY via reducer) ─────────────────────────
     # Each node returns {"history": [new_entry]} and LangGraph appends it
@@ -202,7 +198,7 @@ async def buyer_node(state: dict) -> dict:
     - buyer_current_offer: the new offer price
     - round_number: increments
     - status: may change to "buyer_walked"
-    - last_buyer_message: the A2A message for seller to read
+    - last_buyer_message: the latest buyer message for seller to read
     - history: appends this round's data (via reducer)
 
     ASYNC NODE:
@@ -221,8 +217,7 @@ async def buyer_node(state: dict) -> dict:
             buyer_message = await buyer_agent.make_initial_offer()
         else:
             # Subsequent rounds — respond to seller's counter
-            seller_message = A2AMessage(**last_seller_msg_dict)
-            buyer_message = await buyer_agent.respond_to_counter(seller_message)
+            buyer_message = await buyer_agent.respond_to_counter(last_seller_msg_dict)
 
     except Exception as e:
         print(f"[LangGraph] ❌ Buyer agent error: {e}")
@@ -233,28 +228,28 @@ async def buyer_node(state: dict) -> dict:
 
     # Determine status from the message type
     new_status = state["status"]
-    if buyer_message.message_type == "WITHDRAW":
+    if buyer_message["message_type"] == "WITHDRAW":
         new_status = "buyer_walked"
         print(f"[LangGraph] 🚶 Buyer is walking away")
-    elif buyer_message.message_type == "ACCEPT":
+    elif buyer_message["message_type"] == "ACCEPT":
         new_status = "agreed"
-        print(f"[LangGraph] ✅ Buyer accepts at ${buyer_message.payload.price:,.0f}")
+        print(f"[LangGraph] ✅ Buyer accepts at ${buyer_message.get('price', 0):,.0f}")
 
     # History entry for this round
     history_entry = {
-        "round": buyer_message.round,
+        "round": buyer_message["round"],
         "agent": "buyer",
-        "message_type": buyer_message.message_type,
-        "price": buyer_message.payload.price,
-        "message": buyer_message.payload.message[:200],
+        "message_type": buyer_message["message_type"],
+        "price": buyer_message.get("price"),
+        "message": buyer_message.get("message", "")[:200],
     }
 
     return {
-        "buyer_current_offer": buyer_message.payload.price or state["buyer_current_offer"],
-        "round_number": buyer_message.round,
+        "buyer_current_offer": buyer_message.get("price") or state["buyer_current_offer"],
+        "round_number": buyer_message["round"],
         "status": new_status,
-        "agreed_price": buyer_message.payload.price if new_status == "agreed" else state.get("agreed_price"),
-        "last_buyer_message": buyer_message.model_dump(),
+        "agreed_price": buyer_message.get("price") if new_status == "agreed" else state.get("agreed_price"),
+        "last_buyer_message": buyer_message,
         "history": [history_entry],  # Reducer appends this
     }
 
@@ -283,8 +278,7 @@ async def seller_node(state: dict) -> dict:
         return {"status": "error"}
 
     try:
-        buyer_message = A2AMessage(**last_buyer_msg_dict)
-        seller_message = await seller_agent.respond_to_offer(buyer_message)
+        seller_message = await seller_agent.respond_to_offer(last_buyer_msg_dict)
 
     except Exception as e:
         print(f"[LangGraph] ❌ Seller agent error: {e}")
@@ -297,11 +291,11 @@ async def seller_node(state: dict) -> dict:
     new_status = state["status"]
     agreed_price = state.get("agreed_price")
 
-    if seller_message.message_type == "ACCEPT":
+    if seller_message["message_type"] == "ACCEPT":
         new_status = "agreed"
-        agreed_price = buyer_message.payload.price  # Seller accepted buyer's price
+        agreed_price = last_buyer_msg_dict.get("price")  # Seller accepted buyer's price
         print(f"[LangGraph] ✅ Seller accepts at ${agreed_price:,.0f}")
-    elif seller_message.message_type == "REJECT":
+    elif seller_message["message_type"] == "REJECT":
         new_status = "seller_rejected"
         print(f"[LangGraph] ❌ Seller rejects")
 
@@ -311,18 +305,18 @@ async def seller_node(state: dict) -> dict:
         print(f"[LangGraph] ⏱️  Max rounds reached — deadlock")
 
     history_entry = {
-        "round": seller_message.round,
+        "round": seller_message["round"],
         "agent": "seller",
-        "message_type": seller_message.message_type,
-        "price": seller_message.payload.price,
-        "message": seller_message.payload.message[:200],
+        "message_type": seller_message["message_type"],
+        "price": seller_message.get("price"),
+        "message": seller_message.get("message", "")[:200],
     }
 
     return {
-        "seller_current_counter": seller_message.payload.price or state["seller_current_counter"],
+        "seller_current_counter": seller_message.get("price") or state["seller_current_counter"],
         "status": new_status,
         "agreed_price": agreed_price,
-        "last_seller_message": seller_message.model_dump(),
+        "last_seller_message": seller_message,
         "history": [history_entry],  # Reducer appends this
     }
 

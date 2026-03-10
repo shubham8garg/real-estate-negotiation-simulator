@@ -6,12 +6,12 @@ orchestrated by LangGraph.
 
 WHAT THIS DEMONSTRATES:
   ✅ MCP tool calls (pricing + inventory servers via Python client)
-  ✅ A2A messaging (structured JSON messages between agents)
+    ✅ Typed negotiation messages (structured state between agents)
   ✅ LangGraph orchestration (state machine managing the negotiation loop)
   ✅ OpenAI GPT-4o (powers both buyer and seller reasoning)
 
 ARCHITECTURE:
-  main_simple.py
+    main_langgraph_multiagent.py
     └── m3_langgraph_multiagents/langgraph_flow.py  (manages the negotiation loop)
           ├── m3_langgraph_multiagents/buyer_simple.py  (GPT-4o + MCP)
           │     └── m2_mcp/pricing_server.py (MCP tools)
@@ -27,7 +27,7 @@ SETUP:
        export OPENAI_API_KEY=sk-...
 
   3. Run:
-       python main_simple.py
+      python m3_langgraph_multiagents/main_langgraph_multiagent.py
 
 OPTIONAL FLAGS:
   --rounds N     Set maximum negotiation rounds (default: 5)
@@ -40,6 +40,11 @@ import asyncio
 import os
 import sys
 import uuid
+from pathlib import Path
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
 
 # Validate environment before importing anything
 def check_environment() -> None:
@@ -107,7 +112,7 @@ async def main() -> None:
     print("║        REAL ESTATE NEGOTIATION SIMULATOR                        ║")
     print("║        Simple Python Version (OpenAI GPT-4o + LangGraph)        ║")
     print("╠══════════════════════════════════════════════════════════════════╣")
-    print("║  Concepts: MCP + A2A + LangGraph                                ║")
+    print("║  Concepts: MCP + Typed Messages + LangGraph                     ║")
     print("╚══════════════════════════════════════════════════════════════════╝")
     print()
     print("CONFIGURATION:")
@@ -142,7 +147,7 @@ async def main() -> None:
 
         # ── Post-negotiation summary ──────────────────────────────────────────
         print("\nNEXT STEPS:")
-        print("  • Try the ADK version:  python main_adk.py")
+        print("  • Try the ADK version:  python m4_adk_multiagents/main_adk_multiagent.py")
         print("  • GitHub MCP demo:      python m2_mcp/github_demo_client.py")
         print("  • Exercises:            open exercises/exercises.md")
         print()

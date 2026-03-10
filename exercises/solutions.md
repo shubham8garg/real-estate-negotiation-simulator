@@ -539,7 +539,7 @@ async def _call_pricing_mcp_stdio(tool_name: str, arguments: dict) -> dict:
 import json
 import os
 from openai import AsyncOpenAI
-from m3_langgraph_multiagents.a2a_simple import A2AMessage, create_acceptance
+from m3_langgraph_multiagents.negotiation_types import create_offer
 
 MEDIATOR_SYSTEM_PROMPT = """You are a neutral real estate mediator.
 Your job is to find a fair compromise when buyer and seller cannot agree.
@@ -564,7 +564,7 @@ class MediatorAgent:
         seller_final_counter: float,
         history: list[dict],
         round_num: int
-    ) -> A2AMessage:
+    ) -> dict:
         """Propose a compromise settlement."""
         midpoint = (buyer_final_offer + seller_final_counter) / 2
 
@@ -592,17 +592,11 @@ Propose the fairest settlement price. Consider both parties' concession patterns
         decision = json.loads(response.choices[0].message.content)
         proposed = float(decision.get("proposed_price", midpoint))
 
-        return A2AMessage(
+        return create_offer(
             session_id=self.session_id,
-            from_agent="buyer",  # Using buyer as proxy (mediator not in schema)
-            to_agent="seller",
-            round=round_num,
-            message_type="OFFER",
-            payload={
-                "price": proposed,
-                "message": f"[MEDIATOR PROPOSAL] {decision.get('message_to_both', '')}",
-                "conditions": ["Mediator-proposed settlement — accept or decline"],
-            }
+            round_num=round_num,
+            price=proposed,
+            message=f"[MEDIATOR PROPOSAL] {decision.get('message_to_both', '')}",
         )
 ```
 
@@ -773,10 +767,22 @@ def generate_analytics_report(history: list[dict], listing_price: float) -> None
     print(f"         Round: " + "".join(f"  {r}  " for r in range(1, len(buyer_offers) + 1)))
     print("  B=Buyer Offer, S=Seller Counter")
 
-    print("\nMCP TOOL USAGE: (log during run for actual counts)")
+    print("\nMCP TOOL USAGE: (log during run for actual counts; counts vary by model decisions)")
     print("  Buyer: get_market_price, calculate_discount")
     print("  Seller: get_market_price, get_inventory_level, get_minimum_acceptable_price")
+
+    print("\nOPTIONAL COMPARISON:")
+    print("  Compare this run's MCP selection with Module 4 ADK autonomous tool-calling behavior.")
 ```
+
+Suggested rubric-aligned answer checklist:
+
+- Include concrete runtime evidence (tool-call logs or counted traces from the same session).
+- State the architecture difference precisely:
+    - Module 3: LangGraph orchestration + strict LLM-selected MCP execution in Python nodes
+    - Module 4: ADK `LlmAgent` + `MCPToolset` autonomous tool loop under ADK runner
+- Provide one clear similarity (both can do LLM-driven tool choice) and one clear difference (control surface/explicitness).
+- End with a justified judgment on which was easier to reason about for that run.
 
 ---
 

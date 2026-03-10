@@ -29,7 +29,7 @@ This is the MOTIVATING FAILURE that drives the entire architecture:
   LangGraph -> solves problems #3, #9 (workflow graph + observability)
 
 HOW TO RUN:
-  python m1_m1_baseline/naive_negotiation.py
+  python m1_baseline/naive_negotiation.py
 
 WHAT TO WATCH FOR:
   • Demo 1: "Works by luck" -- notice how fragile the success is
@@ -37,7 +37,7 @@ WHAT TO WATCH FOR:
   • Failure mode demos -- see all 4 ways the regex parser breaks
 
 COMPARE WITH:
-  python main_simple.py   ← The fixed version (MCP + A2A + LangGraph)
+    python m3_langgraph_multiagents/main_langgraph_multiagent.py   ← The fixed version (MCP + typed messages + LangGraph)
 """
 
 import re
@@ -327,7 +327,7 @@ def demonstrate_failure_modes() -> None:
     print(f"Seller says: '{message}'")
     print(f"Regex extracts: ${price_match.group(1) if price_match else 'None'}")
     print(f"PROBLEM: Extracted $350,000 (renovation cost) but the offer was $477,000!")
-    print(f"FIX: Use structured A2A messages with explicit 'price' field (a2a_simple.py)")
+    print(f"FIX: Use structured negotiation messages with explicit 'price' field (negotiation_types.py)")
 
     # ── Failure Mode 2: Infinite loop risk ─────────────────────────────────────
     print("\n--- FAILURE 2: No Agreement Possible (No ZOPA) ---")
@@ -423,7 +423,7 @@ def main() -> None:
     print("""
 Each problem maps to a specific solution in the workshop:
 
-  Problem #1  Raw strings          -> A2A schema (a2a_simple.py)
+    Problem #1  Raw strings          -> Typed message helpers (negotiation_types.py)
   Problem #2  No schema            -> Pydantic NegotiationPayload
   Problem #3  No state machine     -> NegotiationFSM (m1_baseline/state_machine.py)
   Problem #4  No turn limits       -> FSM.process_turn() + LangGraph max_rounds
@@ -431,12 +431,12 @@ Each problem maps to a specific solution in the workshop:
   Problem #6  No term. guarantee   -> FSM terminal states + LangGraph routing
   Problem #7  Silent failures      -> Pydantic validation exceptions
   Problem #8  Hardcoded prices     -> MCP servers (pricing_server.py)
-  Problem #9  No observability     -> LangGraph state history + A2A message IDs
+    Problem #9  No observability     -> LangGraph state history + message IDs
   Problem #10 No evaluation        -> Session analytics, agreed price tracking
 
 RUN THE FIXED VERSION:
-  python main_simple.py   # OpenAI GPT-4o + MCP + A2A + LangGraph
-  python main_adk.py      # Gemini 2.0 Flash + ADK + MCPToolset
+    python m3_langgraph_multiagents/main_langgraph_multiagent.py   # OpenAI GPT-4o + MCP + typed messages + LangGraph
+  python m4_adk_multiagents/main_adk_multiagent.py      # Gemini 2.0 Flash + ADK + MCPToolset
     """)
 
 

@@ -21,8 +21,8 @@ cp .env.example .env
 python m1_baseline/state_machine.py        # Should print FSM demo, no API key
 python m1_baseline/naive_negotiation.py    # Should fail loudly (that's the point)
 pytest tests/ -v                           # All tests should pass, no API keys needed
-python main_simple.py --rounds 2           # Quick smoke test with OpenAI
-python main_adk.py --rounds 1             # Quick smoke test with Gemini
+python m3_langgraph_multiagents/main_langgraph_multiagent.py --rounds 2           # Quick smoke test with OpenAI
+python m4_adk_multiagents/main_adk_multiagent.py --rounds 1             # Quick smoke test with Gemini
 ```
 
 ### What to have on screen when participants arrive
@@ -42,11 +42,11 @@ python main_adk.py --rounds 1             # Quick smoke test with Gemini
 | 1:05–1:50   | M2     | MCP deep dive: protocol + GitHub live demo   | `python m2_mcp/github_demo_client.py`           |
 | 1:50–2:05   | Break  | —                                            | —                                               |
 | 2:05–2:25   | M2     | Custom MCP servers + information asymmetry   | Walk `m2_mcp/pricing_server.py`                 |
-| 2:25–3:10   | M3     | LangGraph deep dive + full run               | `m3_langgraph_multiagents/langgraph_flow.py`, `main_simple.py` |
-| 3:10–3:50   | M4     | Google ADK deep dive + full run              | `m4_adk_multiagents/buyer_adk.py`, `main_adk.py`           |
+| 2:25–3:10   | M3     | LangGraph deep dive + full run               | `m3_langgraph_multiagents/langgraph_flow.py`, `m3_langgraph_multiagents/main_langgraph_multiagent.py` |
+| 3:10–3:50   | M4     | Google ADK deep dive + full run              | `m4_adk_multiagents/buyer_adk.py`, `m4_adk_multiagents/main_adk_multiagent.py`           |
 | 3:50–4:00   | Wrap   | Exercises + Q&A                              | `exercises/exercises.md`                        |
 
-### Note Mapping (Why 4 modules but 5 notes)
+### Note Mapping (Why 4 modules but 6 notes)
 
 The notes are reference guides, so they are not a strict 1:1 count with modules.
 
@@ -54,10 +54,10 @@ The notes are reference guides, so they are not a strict 1:1 count with modules.
 |---|---|---|---|
 | M1 | `m1_baseline/` | `notes/01_agents_fundamentals.md` | Foundation concepts used by all later modules |
 | M2 | `m2_mcp/` | `notes/02_mcp_deep_dive.md` | MCP protocol and tool integration |
-| M3 | `m3_langgraph_multiagents/` | `notes/03_a2a_protocols.md` + `notes/04_langgraph_explained.md` | Module 3 has two core topics: A2A messaging and LangGraph orchestration |
-| M4 | `m4_adk_multiagents/` | `notes/05_google_adk_overview.md` | ADK-specific architecture and runtime patterns |
+| M3 | `m3_langgraph_multiagents/` | `notes/04_langgraph_explained.md` | Module 3 is pure LangGraph orchestration with shared typed state |
+| M4 | `m4_adk_multiagents/` | `notes/03_a2a_protocols.md` + `notes/05_google_adk_overview.md` | A2A protocol transport + ADK runtime patterns |
 
-So the extra note exists because Module 3 is intentionally split into two teachable concepts.
+`notes/06_langgraph_adk_a2a_comparison.md` is a cross-cutting synthesis note comparing orchestration models and interoperability.
 
 ---
 
@@ -316,10 +316,10 @@ MCP = Agent ↔ External Tool
 A2A = Agent ↔ Agent
 
 Buyer agent flow:
-  1. [MCP]  call get_market_price()      → pricing_server.py
-  2. [MCP]  call calculate_discount()    → pricing_server.py
+  1. [LLM planner] decide which MCP tool(s) to call this turn
+  2. [MCP] execute selected tool call(s) → pricing_server.py
   3. Reason about the data with GPT-4o/Gemini
-  4. [A2A]  send OFFER message           → seller agent
+  4. [A2A] send OFFER message            → seller agent
 ```
 
 **ASK the group:**
@@ -341,8 +341,8 @@ Buyer agent flow:
 pytest tests/test_a2a.py -v
 ```
 
-> "The A2A bus is a state machine over message types — same FSM concept from Module 1.
-> You can't respond to an ACCEPT because VALID_RESPONSES['ACCEPT'] is an empty list."
+> "This test validates our typed negotiation message contracts in Module 3.
+> Protocol-level A2A transport is demonstrated in Module 4 using the A2A SDK."
 
 ---
 
@@ -457,19 +457,26 @@ Open `m3_langgraph_multiagents/langgraph_flow.py`.
 **1. The State — 5 min**
 
 ```python
-class NegotiationState(dict):
-    # buyer, seller, bus, round, status, agreed_price, message_history
+class NegotiationState(TypedDict):
+    # Immutable context: session_id, property_address, listing_price
+    # Agent constraints: buyer_budget, seller_minimum, max_rounds
+    # Current positions: buyer_current_offer, seller_current_counter
+    # Round tracking: round_number
+    # Outcome: status, agreed_price
+    # Last messages (node-to-node handoff): last_buyer_message, last_seller_message
+    # Append-only audit trail: history
+    # Agent references (set once in init node): _buyer_agent_ref, _seller_agent_ref
 ```
 
-> "This dict is the SINGLE source of truth for the entire negotiation.
+> "This TypedDict is the SINGLE source of truth for the entire negotiation.
 > Every node reads from it. Every node writes to it.
 > No global variables. No passing objects between functions.
 > The state flows through the graph."
 
 **Point to the Annotated reducer pattern:**
 ```python
-# Conceptually what's happening with message history:
-message_history: Annotated[list[A2AMessage], operator.add]
+# From langgraph_flow.py — the actual field definition:
+history: Annotated[list[dict], operator.add]
 ```
 
 > "This is LangGraph's Annotated reducer. Instead of overwriting the list,
@@ -485,18 +492,35 @@ message_history: Annotated[list[A2AMessage], operator.add]
 **2. The Nodes — 5 min**
 
 ```python
-async def buyer_node(state: NegotiationState) -> dict:
-    buyer = state["buyer"]
-    bus = state["bus"]
-    ...
-    message = await buyer.make_offer(...)
-    bus.send(message)
-    return {"round": state["round"] + 1, "status": bus.get_outcome()}
+async def buyer_node(state: dict) -> dict:
+    buyer_agent: BuyerAgent = state["_buyer_agent_ref"]
+    last_seller_msg = state.get("last_seller_message")
+
+    if last_seller_msg is None:
+        buyer_message = await buyer_agent.make_initial_offer()   # Round 1
+    else:
+        buyer_message = await buyer_agent.respond_to_counter(last_seller_msg)  # Round 2+
+
+    # Determine status from message type
+    new_status = state["status"]
+    if buyer_message["message_type"] == "WITHDRAW":
+        new_status = "buyer_walked"
+    elif buyer_message["message_type"] == "ACCEPT":
+        new_status = "agreed"
+
+    return {
+        "buyer_current_offer": buyer_message.get("price") or state["buyer_current_offer"],
+        "round_number": buyer_message["round"],
+        "status": new_status,
+        "last_buyer_message": buyer_message,
+        "history": [{"round": buyer_message["round"], "agent": "buyer", ...}],  # reducer appends
+    }
 ```
 
-> "Notice: the node takes state, does work, returns a partial state update.
+> "Notice: the node takes state, does work, returns a PARTIAL state update.
 > LangGraph merges the returned dict into the existing state.
-> The node doesn't know about other nodes. It just reads state and returns updates.
+> The node doesn't know about other nodes. It communicates through state:
+> buyer_node writes last_buyer_message → seller_node reads last_buyer_message.
 >
 > Node types in LangGraph:
 > - LLM step: calls a language model (buyer_node, seller_node)
@@ -509,28 +533,30 @@ async def buyer_node(state: NegotiationState) -> dict:
 **3. The Router — 5 min**
 
 ```python
-def route_after_seller(state: NegotiationState) -> Literal["buyer", "end"]:
+def route_after_seller(state: dict) -> Literal["continue", "end"]:
     status = state.get("status", "negotiating")
-    if status in ("agreed", "buyer_walked", "seller_rejected", "deadlocked", "error"):
+    if status != "negotiating":
         return "end"
-    if state.get("round", 0) >= state.get("max_rounds", 5):
+    if state.get("round_number", 0) >= state.get("max_rounds", 5):
         return "end"
-    return "buyer"
+    return "continue"
 ```
 
-> "This is the FSM translated into LangGraph. Every terminal status routes to 'end'.
+> "This is the FSM translated into LangGraph. Every non-negotiating status routes to 'end'.
 > 'end' maps to the END constant — a special node with no outgoing edges.
 > The graph CANNOT leave END. Termination guaranteed at the workflow level."
 
 **Show how the graph is assembled:**
 ```python
-graph = StateGraph(NegotiationState)
-graph.add_node("buyer", buyer_node)
-graph.add_node("seller", seller_node)
-graph.add_edge(START, "buyer")
-graph.add_conditional_edges("buyer", route_after_buyer, {"seller": "seller", "end": END})
-graph.add_conditional_edges("seller", route_after_seller, {"buyer": "buyer", "end": END})
-compiled = graph.compile()
+workflow = StateGraph(NegotiationState)
+workflow.add_node("init", initialize_agents_node)
+workflow.add_node("buyer", buyer_node)
+workflow.add_node("seller", seller_node)
+workflow.set_entry_point("init")
+workflow.add_edge("init", "buyer")
+workflow.add_conditional_edges("buyer", route_after_buyer, {"to_seller": "seller", "end": END})
+workflow.add_conditional_edges("seller", route_after_seller, {"continue": "buyer", "end": END})
+graph = workflow.compile()
 ```
 
 > "add_node: register the function.
@@ -551,9 +577,9 @@ compiled = graph.compile()
 # Naive (naive_negotiation.py)          # LangGraph (langgraph_flow.py)
 while True:                              # while not fsm.is_terminal():
     buyer_msg = buyer.respond(...)       #   buyer_node(state) -> returns update
-    if "DEAL" in buyer_msg: break        #   route_after_buyer -> "seller" or "end"
+    if "DEAL" in buyer_msg: break        #   route_after_buyer -> "to_seller" or "end"
     seller_msg = seller.respond(...)     #   seller_node(state) -> returns update
-    if turn > 100: break                 #   route_after_seller -> "buyer" or "end"
+    if turn > 100: break                 #   route_after_seller -> "continue" or "end"
 ```
 
 > "LangGraph forces you to be explicit about routing. You can't accidentally forget
@@ -562,7 +588,7 @@ while True:                              # while not fsm.is_terminal():
 #### Part C: Run and observe (2:55–3:10) — 15 min
 
 ```bash
-python main_simple.py
+python m3_langgraph_multiagents/main_langgraph_multiagent.py
 ```
 
 **SAY:**
@@ -579,7 +605,7 @@ python main_simple.py
 
 **TRY a deadlock scenario:**
 ```bash
-python main_simple.py --seller-minimum 470000 --buyer-budget 460000
+python m3_langgraph_multiagents/main_langgraph_multiagent.py --seller-minimum 470000 --buyer-budget 460000
 ```
 > "No overlap zone. Watch LangGraph terminate cleanly at round 5.
 > Count the lines — exactly 5 rounds, then END. No emergency exit needed."
@@ -593,25 +619,24 @@ This module shows how ADK changes the agent model: from explicit tool calls to a
 #### Part A: ADK philosophy (3:10–3:20) — 10 min
 
 **SAY:**
-> "In Module 3, WE decided when to call MCP tools:
-> 'Before the LLM runs, call get_market_price, then call calculate_discount,
-> then give the results to GPT-4o.'
+> "In Module 3, GPT-4o first acts as a planner to decide which MCP tools to call,
+> and then uses the returned data for the negotiation response.
 >
-> In ADK, we don't make that decision. The LLM does.
+> In ADK, that tool-use autonomy is native inside the ADK runner.
 > We say: 'Here are the tools. Figure out when to use them.'
 > This is a fundamentally different agent model."
 
 **DRAW the difference:**
 ```
-SIMPLE VERSION (explicit tool orchestration):
-  Orchestrator:  "Round 1, buyer's turn"
-  buyer_node:    1. call MCP get_market_price()  <- WE decide
-                 2. call MCP calculate_discount() <- WE decide
-                 3. call GPT-4o with results
+SIMPLE VERSION (LLM-planned MCP + LangGraph orchestration):
+  Coordinator:   "Round 1, buyer's turn"
+  buyer_node:    1. GPT-4o planner selects MCP tool(s)
+                 2. execute selected MCP call(s)
+                 3. call GPT-4o for negotiation decision
                  4. return A2AMessage
 
 ADK VERSION (autonomous tool use):
-  Orchestrator:  "Round 1, buyer's turn"
+  Coordinator:   "Round 1, buyer's turn"
   ADK Runner:    1. send prompt to Gemini
                  Gemini: "I need market data. I'll call get_market_price()"
                  ADK:    executes the tool call
@@ -659,12 +684,14 @@ self._agent = LlmAgent(
 
 ```python
 pricing_toolset = MCPToolset(
-    connection_params=StdioServerParameters(
-        command=sys.executable,
-        args=[_PRICING_SERVER],     # absolute path to pricing_server.py
+    connection_params=StdioConnectionParams(
+        server_params=StdioServerParameters(
+            command=sys.executable,
+            args=[_PRICING_SERVER],     # absolute path to pricing_server.py
+        )
     )
 )
-tools, exit_stack = await pricing_toolset.async_init_tools()
+tools = await pricing_toolset.get_tools()
 ```
 
 > "MCPToolset does what our buyer_simple.py does manually — but automatically.
@@ -741,10 +768,10 @@ Open `m4_adk_multiagents/seller_adk.py`:
 
 ```python
 # Pricing tools (shared with buyer)
-pricing_tools, pricing_exit = await pricing_toolset.async_init_tools()
+pricing_tools = await pricing_toolset.get_tools()
 
 # Inventory tools (seller ONLY - has get_minimum_acceptable_price)
-inventory_tools, inventory_exit = await inventory_toolset.async_init_tools()
+inventory_tools = await inventory_toolset.get_tools()
 
 # Merge: Gemini sees all four tools as one unified list
 all_tools = list(pricing_tools) + list(inventory_tools)
@@ -775,21 +802,21 @@ async with BuyerAgentADK(session_id=f"{session_id}_buyer") as buyer:
 #### Part C: Run and compare (3:35–3:50) — 15 min
 
 ```bash
-python main_adk.py
+python m4_adk_multiagents/main_adk_multiagent.py
 ```
 
 **Watch specifically for:**
 - `[Buyer ADK] Discovered MCP tools: [...]` — tool discovery happening
 - `[Buyer ADK] Calling tool: get_market_price(...)` — Gemini autonomously deciding to call
-- Compare: in the simple version, you saw `[Buyer] Calling MCP (pricing): get_market_price...`
-  because WE told it to. Here Gemini decided.
+- Compare: in the simple version, you saw `[Buyer] LLM planned MCP calls: ...`
+  then selected MCP calls were executed. In ADK, Gemini makes tool calls inside the runner loop.
 
 **AFTER IT RUNS — compare with Module 3:**
 
 | Observation | Simple Version | ADK Version |
 |---|---|---|
-| Who calls MCP tools? | buyer_node explicitly calls before LLM | Gemini decides mid-generation |
-| Where is the loop? | LangGraph StateGraph | Manual loop in main_adk.py |
+| Who chooses MCP tools? | GPT-4o planner in buyer/seller nodes (strict selected-only execution) | Gemini decides mid-generation |
+| Where is the loop? | LangGraph StateGraph | Manual loop in m4_adk_multiagents/main_adk_multiagent.py |
 | Conversation memory | LLM messages list in BuyerAgent | ADK InMemorySessionService |
 | Response format | response_format=json_object (strict) | Instruction prompt (best-effort) |
 | Fallback on bad JSON | structured output guaranteed | _extract_json() 4-strategy parser |
@@ -818,7 +845,7 @@ python main_adk.py
 
 **TRY the deadlock case on ADK:**
 ```bash
-python main_adk.py --seller-minimum 470000 --buyer-budget 460000
+python m4_adk_multiagents/main_adk_multiagent.py --seller-minimum 470000 --buyer-budget 460000
 ```
 > "Same clean termination as the LangGraph version — but implemented differently.
 > NegotiationSession.is_concluded() instead of LangGraph conditional edges."
@@ -887,7 +914,7 @@ python exercises/code_solutions/ex07_sse_client_demo.py
 ```bash
 # Must run from negotiation_workshop/ directory
 cd path/to/negotiation_workshop
-python main_simple.py
+python m3_langgraph_multiagents/main_langgraph_multiagent.py
 ```
 
 ### "OPENAI_API_KEY not set"
@@ -940,7 +967,7 @@ pytest tests/ -v
 | Concept | One-line Definition | Where in Code |
 |---------|-------------------|---------------|
 | MCP | Standard protocol for agent ↔ external tool (3 operations: list, schema, call) | `m2_mcp/` |
-| A2A | Structured agent ↔ agent messaging with state machine validation | `m3_langgraph_multiagents/a2a_simple.py` |
+| A2A | Networked agent ↔ agent protocol transport (Agent Card + JSON-RPC) | `m4_adk_multiagents/a2a_protocol_seller_server.py` |
 | FSM | Termination guaranteed by empty transition sets on terminal states | `m1_baseline/state_machine.py` |
 | LangGraph StateGraph | Declarative workflow graph with shared state and conditional routing | `m3_langgraph_multiagents/langgraph_flow.py` |
 | Annotated reducer | Append-not-overwrite pattern for lists in LangGraph state | `langgraph_flow.py` line ~110 |
@@ -981,7 +1008,7 @@ External Data           └──────────┘         │ seller_
 MODULE 4: SAME AGENTS, ADK INSTEAD OF EXPLICIT TOOL CALLS
 ─────────────────────────────────────────────────────────
 MCPToolset auto-discovers tools -> Gemini decides when to call them
-Manual orchestration loop in main_adk.py instead of LangGraph StateGraph
+Manual coordination loop in m4_adk_multiagents/main_adk_multiagent.py instead of LangGraph StateGraph
 
 MODULE 1: BASELINE (shows what breaks WITHOUT modules 2-4)
 ```

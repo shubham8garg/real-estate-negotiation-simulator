@@ -13,19 +13,19 @@ ARCHITECTURE:
   2. LLM REASONING: GPT-4o decides the actual offer price and message
      based on the market data retrieved via MCP.
 
-  3. A2A OUTPUT: The agent produces an A2AMessage that gets routed to
-     the seller via the A2AMessageBus.
+  3. STATE OUTPUT: The agent produces a negotiation message dict that
+      LangGraph stores in shared state for the seller node.
 
   4. STATE: The agent maintains its conversation history (buyer_llm_messages)
      across rounds so GPT-4o remembers previous offers and counters.
 
 FLOW PER ROUND:
-  1. Receive seller's counter-offer (A2AMessage via bus)
+    1. Receive seller's counter-offer from shared LangGraph state
   2. Call MCP pricing server to get fresh market data
   3. Call MCP pricing server to calculate discount range
   4. Add market data + counter to GPT-4o context
   5. GPT-4o decides next offer (or walk-away)
-  6. Return A2AMessage with the decision
+    6. Return a negotiation message dict with the decision
 """
 
 import asyncio
@@ -41,11 +41,11 @@ from openai import AsyncOpenAI
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 
-# A2A message schema from our a2a_simple module
-from m3_langgraph_multiagents.a2a_simple import (
-    A2AMessage,
+from m3_langgraph_multiagents.negotiation_types import (
+    NegotiationMessage,
     create_offer,
     create_withdrawal,
+    create_acceptance,
 )
 
 
@@ -101,6 +101,32 @@ CRITICAL RULES:
 - Keep message professional and factual
 - Your reasoning field is private (not shown to seller)"""
 
+BUYER_MCP_PLANNER_PROMPT = """You are selecting MCP tools for a buyer negotiation agent.
+
+Return strict JSON in this format:
+{
+    "tool_calls": [
+        {"tool": "<tool_name>", "arguments": { ... }}
+    ]
+}
+
+Available tools and required arguments:
+- get_market_price: {"address": "string", "property_type": "single_family|condo|townhouse"}
+- calculate_discount: {
+        "base_price": number,
+        "market_condition": "seller_market|balanced|buyer_market",
+        "days_on_market": number,
+        "property_condition": "excellent|good|fair|needs_work"
+    }
+
+Rules:
+- Call 1-2 tools only.
+- Prefer get_market_price first when market context is stale or unknown.
+- Call calculate_discount when offer-range guidance is needed.
+- Never invent tools outside the list.
+- Output JSON only.
+"""
+
 
 # ─── MCP Helper ───────────────────────────────────────────────────────────────
 
@@ -151,7 +177,7 @@ class BuyerAgent:
     1. Fetches fresh market data via MCP
     2. Adds the seller's counter + market data to its context
     3. Calls GPT-4o to decide the next offer
-    4. Converts the LLM response to an A2AMessage
+    4. Converts the LLM response to a negotiation message dict
 
     WHY KEEP CONVERSATION HISTORY?
     Without history, the agent starts fresh each round and may:
@@ -227,7 +253,89 @@ class BuyerAgent:
 
         return json.loads(reply_content)
 
-    async def make_initial_offer(self) -> A2AMessage:
+    async def _plan_mcp_tool_calls(self, planning_context: str) -> list[dict]:
+        """Ask the LLM which buyer MCP tools to invoke this round."""
+        response = await self.client.chat.completions.create(
+            model=OPENAI_MODEL,
+            messages=[
+                {"role": "system", "content": BUYER_MCP_PLANNER_PROMPT},
+                {"role": "user", "content": planning_context},
+            ],
+            response_format={"type": "json_object"},
+            temperature=0.0,
+        )
+
+        content = response.choices[0].message.content
+        parsed = json.loads(content)
+        tool_calls = parsed.get("tool_calls", [])
+
+        allowed_tools = {"get_market_price", "calculate_discount"}
+        valid_calls: list[dict] = []
+
+        for call in tool_calls:
+            tool = call.get("tool")
+            arguments = call.get("arguments", {})
+
+            if tool in allowed_tools and isinstance(arguments, dict):
+                valid_calls.append({"tool": tool, "arguments": arguments})
+
+        return valid_calls[:2]
+
+    async def _gather_mcp_context_via_llm(
+        self,
+        stage: str,
+        seller_price: Optional[float] = None,
+    ) -> tuple[dict, dict]:
+        """Use strict LLM planning to decide which MCP tools to call (no auto-fallback calls)."""
+        planning_context = (
+            f"Stage: {stage}\n"
+            f"Property: {PROPERTY_ADDRESS}\n"
+            f"Listing price: {LISTING_PRICE}\n"
+            f"Buyer budget: {BUYER_BUDGET}\n"
+            f"Seller counter (if any): {seller_price if seller_price is not None else 'N/A'}\n"
+            "Need market comparables and tactical pricing guidance for next buyer response."
+        )
+
+        market_data: dict = {}
+        discount_data: dict = {}
+
+        try:
+            planned_calls = await self._plan_mcp_tool_calls(planning_context)
+            if planned_calls:
+                print(f"   [Buyer] LLM planned MCP calls: {[c['tool'] for c in planned_calls]}")
+
+            for call in planned_calls:
+                tool = call["tool"]
+                arguments = call["arguments"]
+
+                if tool == "get_market_price":
+                    args = {
+                        "address": arguments.get("address", PROPERTY_ADDRESS),
+                        "property_type": arguments.get("property_type", "single_family"),
+                    }
+                    print("   [Buyer] Calling MCP (LLM-planned): get_market_price...")
+                    market_data = await call_pricing_mcp("get_market_price", args)
+
+                elif tool == "calculate_discount":
+                    args = {
+                        "base_price": float(arguments.get("base_price", LISTING_PRICE)),
+                        "market_condition": arguments.get("market_condition", "balanced"),
+                        "days_on_market": int(arguments.get("days_on_market", 18)),
+                        "property_condition": arguments.get("property_condition", "good"),
+                    }
+                    print("   [Buyer] Calling MCP (LLM-planned): calculate_discount...")
+                    discount_data = await call_pricing_mcp("calculate_discount", args)
+
+            if not planned_calls:
+                print("   [Buyer] LLM planned no MCP calls for this round")
+
+        except Exception as planner_error:
+            print(f"   [Buyer] MCP planner error (continuing without MCP calls): {planner_error}")
+
+        self._market_data = market_data
+        return market_data, discount_data
+
+    async def make_initial_offer(self) -> NegotiationMessage:
         """
         Make the opening offer.
 
@@ -237,15 +345,10 @@ class BuyerAgent:
         self.round = 1
         print(f"\n[Buyer] Round {self.round}: Preparing initial offer...")
 
-        # Step 1: Get market data via MCP
-        market_data = await self._get_market_data()
-        market_condition = market_data.get("market_conditions", {}).get("market_type", "balanced")
-        days_on_market = market_data.get("pricing", {}).get("days_on_market", 18)
+        # Step 1: Let LLM decide which MCP tools to call, then gather data
+        market_data, discount_data = await self._gather_mcp_context_via_llm(stage="initial_offer")
 
-        # Step 2: Get discount analysis via MCP
-        discount_data = await self._get_discount_analysis(market_condition, days_on_market)
-
-        # Step 3: Build context for GPT-4o
+        # Step 2: Build context for GPT-4o
         user_message = f"""
 You are making your INITIAL OFFER on {PROPERTY_ADDRESS}.
 
@@ -266,13 +369,13 @@ This is your FIRST offer. Start strategically below your budget.
 Based on the market data, what is your opening offer?
 """
 
-        # Step 4: GPT-4o decides the offer
+        # Step 3: GPT-4o decides the offer
         decision = await self._call_llm(user_message)
 
         print(f"   [Buyer] Decision: offer ${decision.get('offer_price', 0):,}")
         print(f"   [Buyer] Reasoning: {decision.get('reasoning', '')[:80]}...")
 
-        # Step 5: Convert to A2AMessage
+        # Step 4: Convert to negotiation message
         return create_offer(
             session_id=self.session_id,
             round_num=self.round,
@@ -280,7 +383,7 @@ Based on the market data, what is your opening offer?
             message=decision["message"],
         )
 
-    async def respond_to_counter(self, seller_message: A2AMessage) -> A2AMessage:
+    async def respond_to_counter(self, seller_message: NegotiationMessage) -> NegotiationMessage:
         """
         Respond to a seller counter-offer.
 
@@ -288,18 +391,18 @@ Based on the market data, what is your opening offer?
         calls GPT-4o to decide whether to increase the offer, accept, or walk away.
         """
         self.round += 1
-        self._last_seller_message_id = seller_message.message_id
+        self._last_seller_message_id = seller_message["message_id"]
 
-        print(f"\n[Buyer] Round {self.round}: Received counter-offer ${seller_message.payload.price:,.0f}")
+        print(f"\n[Buyer] Round {self.round}: Received counter-offer ${seller_message.get('price', 0):,.0f}")
 
         # Sanity check: if seller already came below our budget, consider accepting
-        seller_price = seller_message.payload.price or 0
+        seller_price = seller_message.get("price") or 0
 
-        # Step 1: Refresh discount analysis with current market
-        market_data = await self._get_market_data()
-        market_condition = market_data.get("market_conditions", {}).get("market_type", "balanced")
-        days_on_market = market_data.get("pricing", {}).get("days_on_market", 18)
-        discount_data = await self._get_discount_analysis(market_condition, days_on_market)
+        # Step 1: Let LLM decide MCP calls for this response round
+        market_data, discount_data = await self._gather_mcp_context_via_llm(
+            stage="respond_to_counter",
+            seller_price=float(seller_price),
+        )
 
         # Step 2: Build context for GPT-4o
         user_message = f"""
@@ -307,9 +410,9 @@ The seller has responded with a counter-offer.
 
 SELLER'S COUNTER-OFFER:
 Price: ${seller_price:,.0f}
-Conditions: {seller_message.payload.conditions}
-Closing timeline: {seller_message.payload.closing_timeline_days} days
-Seller's message: "{seller_message.payload.message}"
+Conditions: {seller_message.get('conditions', [])}
+Closing timeline: {seller_message.get('closing_timeline_days')} days
+Seller's message: "{seller_message.get('message', '')}"
 
 CURRENT NEGOTIATION STATUS:
 - Round: {self.round} of 5 maximum
@@ -350,7 +453,6 @@ What is your response?
 
         if seller_price <= BUYER_BUDGET and seller_price <= offer_price:
             # Seller is within our budget — accept!
-            from m3_langgraph_multiagents.a2a_simple import create_acceptance
             print(f"   [Buyer] Accepting seller's counter at ${seller_price:,.0f}")
             return create_acceptance(
                 session_id=self.session_id,

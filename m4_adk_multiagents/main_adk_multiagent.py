@@ -8,16 +8,17 @@ WHAT THIS DEMONSTRATES:
   ✅ Google ADK (LlmAgent, Runner, SessionService)
   ✅ MCPToolset (automatic MCP tool discovery for ADK agents)
   ✅ Gemini 2.0 Flash (free tier — no billing required)
-  ✅ A2A messaging (same schema as simple version)
+    ✅ ADK-native agent messaging in Module 4
   ✅ Dual MCP connections (seller uses pricing + inventory servers)
 
 ARCHITECTURE:
-  main_adk.py  (orchestrator — coordinates two ADK agents)
+    main_adk_multiagent.py  (coordinator — coordinates two ADK agents)
     ├── m4_adk_multiagents/buyer_adk.py   (Gemini + MCPToolset → pricing_server)
     │     └── m2_mcp/pricing_server.py
     └── m4_adk_multiagents/seller_adk.py  (Gemini + MCPToolset → pricing + inventory)
           ├── m2_mcp/pricing_server.py
           └── m2_mcp/inventory_server.py
+        + m4_adk_multiagents/adk_a2a_types.py (Module 4 ADK-native message model)
 
 HOW THE ADK VERSION DIFFERS FROM SIMPLE:
   Simple version:
@@ -27,7 +28,7 @@ HOW THE ADK VERSION DIFFERS FROM SIMPLE:
   ADK version:
   - LlmAgent (Gemini) decides when to call which MCP tools autonomously
   - MCPToolset handles MCP connections transparently
-  - Orchestrator in main_adk.py manages the loop (not LangGraph)
+    - Coordinator in main_adk_multiagent.py manages the loop (not LangGraph)
   - Sessions managed by ADK's InMemorySessionService
 
 SETUP:
@@ -41,7 +42,7 @@ SETUP:
        export GOOGLE_API_KEY=AIza...
 
   4. Run:
-       python main_adk.py
+      python m4_adk_multiagents/main_adk_multiagent.py
 """
 
 import argparse
@@ -49,6 +50,11 @@ import asyncio
 import os
 import sys
 import uuid
+from pathlib import Path
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
 
 
 def check_environment() -> None:
@@ -77,21 +83,21 @@ async def run_adk_negotiation(
     """
     Run the complete negotiation using ADK agents.
 
-    ADK ORCHESTRATION PATTERN:
+    ADK COORDINATION PATTERN:
     Unlike the LangGraph version where the graph manages the loop,
-    here the orchestrator (this function) manually manages the loop.
+    here this function manually manages the loop.
 
     Each round:
     1. Buyer agent's LlmAgent runs → calls MCP tools → produces offer
-    2. We parse the offer into an A2AMessage
-    3. Seller agent's LlmAgent runs (receiving buyer's A2A message as prompt)
-    4. We parse the counter into an A2AMessage
+    2. We parse the offer into an ADK-native negotiation message
+    3. Seller agent's LlmAgent runs (receiving buyer message as prompt)
+    4. We parse the counter into an ADK-native negotiation message
     5. Check for agreement / deadlock
     6. Loop back to step 1 if continuing
 
     WHY THIS APPROACH?
     ADK agents are designed to be stateful within their own session.
-    Coordination between agents is the orchestrator's job, not ADK's.
+    Coordination between agents is handled by the runner logic here, not ADK's core runtime.
     This separation of concerns makes each agent simpler and more focused.
     """
     from m4_adk_multiagents.buyer_adk import BuyerAgentADK
@@ -101,8 +107,6 @@ async def run_adk_negotiation(
         print_round_summary,
         print_final_result,
     )
-    from m3_langgraph_multiagents.a2a_simple import A2AMessage
-
     # Create session tracker (holds negotiation state for ADK version)
     session = NegotiationSession(
         session_id=session_id,
@@ -123,7 +127,7 @@ async def run_adk_negotiation(
     async with BuyerAgentADK(session_id=f"{session_id}_buyer") as buyer:
         async with SellerAgentADK(session_id=f"{session_id}_seller") as seller:
 
-            print("\n[Orchestrator] Both ADK agents initialized. Starting negotiation.")
+            print("\n[Coordinator] Both ADK agents initialized. Starting negotiation.")
 
             # ── Round loop ────────────────────────────────────────────────────
             for round_num in range(1, max_rounds + 1):
@@ -156,7 +160,7 @@ async def run_adk_negotiation(
                 # ── Deadlock check ────────────────────────────────────────────
                 if round_num >= max_rounds and not session.is_concluded():
                     session.status = "deadlocked"
-                    print(f"\n[Orchestrator] ⏱️  Max rounds ({max_rounds}) reached — deadlock")
+                    print(f"\n[Coordinator] ⏱️  Max rounds ({max_rounds}) reached — deadlock")
                     break
 
             # ── Final result ──────────────────────────────────────────────────
@@ -249,7 +253,7 @@ async def main() -> None:
     print("WHAT TO WATCH FOR:")
     print("  [Buyer ADK]  Calling tool: → ADK is calling an MCP tool")
     print("  [Seller ADK] Connecting:   → ADK is connecting to MCP server")
-    print("  [Orchestrator]             → Managing the A2A message exchange")
+    print("  [Coordinator]              → Managing the A2A message exchange")
     print()
 
     try:
@@ -261,7 +265,7 @@ async def main() -> None:
         )
 
         print("\nNEXT STEPS:")
-        print("  • Try the simple version: python main_simple.py")
+        print("  • Try the simple version: python m3_langgraph_multiagents/main_langgraph_multiagent.py")
         print("  • Compare results between versions")
         print("  • Exercises: open exercises/exercises.md")
         print()
