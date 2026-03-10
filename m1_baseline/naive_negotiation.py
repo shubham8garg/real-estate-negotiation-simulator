@@ -267,7 +267,7 @@ def run_naive_negotiation(
     # ║  This will run FOREVER without the emergency exit at 100 turns.   ║
     # ║                                                                    ║
     # ║  FIX: Use NegotiationFSM from m1_baseline/state_machine.py           ║
-    # ║  BETTER FIX: Use LangGraph from m3_agents/langgraph_flow.py   ║
+    # ║  BETTER FIX: Use LangGraph from m3_langgraph_multiagents/langgraph_flow.py   ║
     # ╚════════════════════════════════════════════════════════════════════╝
     while True:
         turn += 1

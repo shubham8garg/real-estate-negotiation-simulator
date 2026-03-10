@@ -37,7 +37,7 @@ d) Draw a simple architecture diagram showing all four integrations.
 
 ### Exercise 2: LangGraph State Design
 
-Look at our `NegotiationState` in `m3_agents/langgraph_flow.py`.
+Look at our `NegotiationState` in `m3_langgraph_multiagents/langgraph_flow.py`.
 
 **Questions**:
 a) Why does `history` use `Annotated[list, operator.add]` instead of just `list`?
@@ -215,10 +215,10 @@ def check_negotiation_deadlock(
 negotiation reaches round 4 without agreement and proposes a compromise.
 
 **Requirements**:
-- Create `m3_agents/mediator_simple.py`
+- Create `m3_langgraph_multiagents/mediator_simple.py`
 - The mediator has access to BOTH buyer and seller's last offers
 - Uses GPT-4o to propose a fair compromise price
-- Modify `m3_agents/langgraph_flow.py` to:
+- Modify `m3_langgraph_multiagents/langgraph_flow.py` to:
   - Add a `mediator` node
   - Route to mediator when `round_number == 4` and status is still `"negotiating"`
   - Both agents can ACCEPT or REJECT the mediator's proposal
@@ -442,7 +442,7 @@ a) The `history` field uses `Annotated[list[dict], operator.add]`. This graph ha
 b) What happens if GPT-4o returns `"payment"` instead of `"billing"` as the classification?
    Write a defensive version of `route_after_triage` that handles unexpected values.
 
-c) The negotiation graph (m3_agents) is **cyclic** (buyer -> seller -> buyer...).
+c) The negotiation graph (m3_langgraph_multiagents) is **cyclic** (buyer -> seller -> buyer...).
    This support graph is a **DAG** (no cycles). How does this difference affect:
    - Risk of infinite loops?
    - Need for a termination condition like `max_rounds`?

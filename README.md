@@ -46,16 +46,19 @@ negotiation_workshop/
 │   ├── pricing_server.py              # Custom MCP: market pricing tools
 │   └── inventory_server.py            # Custom MCP: inventory + seller constraints
 │
-├── m3_agents/                         # MODULE 3 — A2A messaging + LangGraph
+├── m3_langgraph_multiagents/                         # MODULE 3 — A2A messaging + LangGraph
+│   ├── README.md                      # File-by-file guide for Module 3
 │   ├── a2a_simple.py                  # A2A message schema + message bus
 │   ├── buyer_simple.py                # Buyer agent (OpenAI GPT-4o)
 │   ├── seller_simple.py               # Seller agent (OpenAI GPT-4o)
 │   └── langgraph_flow.py              # LangGraph negotiation workflow
 │
-├── m4_adk/                            # MODULE 4 — Google ADK + Gemini
+├── m4_adk_multiagents/                            # MODULE 4 — Google ADK + Gemini
+│   ├── README.md                      # File-by-file guide for Module 4
 │   ├── messaging_adk.py               # ADK response parsing + session tracking
 │   ├── buyer_adk.py                   # Buyer agent (Gemini 2.0 Flash via ADK)
-│   └── seller_adk.py                  # Seller agent (Gemini 2.0 Flash via ADK)
+│   ├── seller_adk.py                  # Seller agent (Gemini 2.0 Flash via ADK)
+│   └── a2a_adk_demo.py                # Focused ADK A2A exchange demo
 │
 ├── tests/                             # Test suite (no API keys needed)
 │   ├── test_fsm.py                    # FSM termination guarantee tests
@@ -88,6 +91,23 @@ negotiation_workshop/
 ├── .env.example                       # Copy to .env and add your API keys
 └── requirements.txt
 ```
+
+If module files feel overwhelming, start with:
+- `m3_langgraph_multiagents/README.md` for Module 3 file roles and flow
+- `m4_adk_multiagents/README.md` for Module 4 (ADK) file roles and flow
+
+### Why 4 modules but 5 notes?
+
+The notes are reference guides, not a strict 1:1 module count.
+
+| Module | Folder | Primary Notes | Why |
+|---|---|---|---|
+| M1 | `m1_baseline/` | `notes/01_agents_fundamentals.md` | Foundation concepts used by all later modules |
+| M2 | `m2_mcp/` | `notes/02_mcp_deep_dive.md` | MCP protocol and tool integration |
+| M3 | `m3_langgraph_multiagents/` | `notes/03_a2a_protocols.md` + `notes/04_langgraph_explained.md` | Module 3 has two core topics: A2A messaging and LangGraph orchestration |
+| M4 | `m4_adk_multiagents/` | `notes/05_google_adk_overview.md` | ADK-specific architecture and runtime patterns |
+
+So the extra note exists because Module 3 is intentionally split into two teachable concepts.
 
 ---
 
@@ -176,6 +196,7 @@ python main_simple.py
 
 # MODULE 4: ADK version (needs GOOGLE_API_KEY, free)
 python main_adk.py
+python m4_adk_multiagents/a2a_adk_demo.py --rounds 3  # focused ADK A2A exchange demo
 ```
 
 ### 7. Exercise 7 SSE Prerequisite
@@ -201,7 +222,7 @@ python exercises/code_solutions/ex07_sse_client_demo.py
 ```
 python main_simple.py
     │
-    └── m3_agents/langgraph_flow.py
+    └── m3_langgraph_multiagents/langgraph_flow.py
           │
           ├── LangGraph Graph: START → init → [buyer ↔ seller] → END
           │
@@ -281,8 +302,8 @@ See `INSTRUCTOR_GUIDE.md` for the full 4-hour script, talking points, and debrie
 | 0:15–1:05 | M1 | Why naive agents break + FSM fix | `m1_baseline/` |
 | 1:05–1:30 | M2 | MCP with GitHub | `m2_mcp/github_demo_client.py` |
 | 1:30–2:15 | M2 | Custom MCP servers | `m2_mcp/pricing_server.py` |
-| 2:15–3:15 | M3 | A2A + LangGraph + full simple run | `m3_agents/`, `main_simple.py` |
-| 3:15–3:40 | M4 | Google ADK + Gemini | `m4_adk/`, `main_adk.py` |
+| 2:15–3:15 | M3 | A2A + LangGraph + full simple run | `m3_langgraph_multiagents/`, `main_simple.py` |
+| 3:15–3:40 | M4 | Google ADK + Gemini | `m4_adk_multiagents/`, `main_adk.py` |
 | 3:40–4:00 | Wrap | Exercises + Q&A | `exercises/exercises.md` |
 
 ---
@@ -366,7 +387,7 @@ def get_neighborhood_score(zip_code: str) -> dict:
 
 ### Change Negotiation Strategy
 
-In `m3_agents/buyer_simple.py`, modify `BUYER_SYSTEM_PROMPT`:
+In `m3_langgraph_multiagents/buyer_simple.py`, modify `BUYER_SYSTEM_PROMPT`:
 
 ```python
 # Change from "start 12% below asking" to "start 8% below"

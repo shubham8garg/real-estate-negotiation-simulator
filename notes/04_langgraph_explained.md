@@ -860,7 +860,7 @@ workflow.add_conditional_edges(
 graph = workflow.compile()
 ```
 
-See `m3_agents/langgraph_flow.py` for the complete implementation.
+See `m3_langgraph_multiagents/langgraph_flow.py` for the complete implementation.
 
 ---
 

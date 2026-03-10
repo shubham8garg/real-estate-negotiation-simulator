@@ -932,12 +932,12 @@ os.environ["GOOGLE_API_KEY"] = "AIza..."
 
 ## 11. Our ADK Implementation
 
-Here's how our negotiation simulator uses ADK (detailed in `m4_adk/`).
+Here's how our negotiation simulator uses ADK (detailed in `m4_adk_multiagents/`).
 
 ### Buyer Agent (ADK Version)
 
 ```python
-# m4_adk/buyer_adk.py — conceptual overview
+# m4_adk_multiagents/buyer_adk.py — conceptual overview
 
 from google.adk.agents import LlmAgent
 from google.adk.tools.mcp_tool.mcp_toolset import MCPToolset, StdioServerParameters
@@ -990,7 +990,7 @@ async def create_buyer_agent() -> tuple[LlmAgent, list]:
 ### Seller Agent (ADK Version)
 
 ```python
-# m4_adk/seller_adk.py — conceptual overview
+# m4_adk_multiagents/seller_adk.py — conceptual overview
 
 SELLER_INSTRUCTION = """
 You are a real estate seller agent representing the owners of:
@@ -1046,7 +1046,7 @@ We implement both to compare:
    - MCP via Python client
    - LangGraph for workflow management
 
-2. **Google ADK** (`m4_adk/`, `main_adk.py`)
+2. **Google ADK** (`m4_adk_multiagents/`, `main_adk.py`)
    - Use when building for production
    - Gemini 2.0 Flash (free tier)
    - MCP via native MCPToolset

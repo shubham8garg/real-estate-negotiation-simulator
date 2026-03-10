@@ -10,6 +10,7 @@
 3. [LLM vs Workflow vs Agent](#3-llm-vs-workflow-vs-agent)
 4. [The Three Core Properties of Agents](#4-the-three-core-properties-of-agents)
 5. [Agent Architectures](#5-agent-architectures)
+    - [Finite State Machines (FSM) as Agent Control](#54-finite-state-machines-fsm-as-agent-control)
 6. [Multi-Agent Systems](#6-multi-agent-systems)
 7. [Real-World Analogies](#7-real-world-analogies)
 8. [Common Misconceptions](#8-common-misconceptions)
@@ -309,6 +310,53 @@ REFLECT: "Better. 8.9% below asking. Data supports this range."
 COMMIT: Send $442,000 offer
 ```
 
+### 5.4 Finite State Machines (FSM) as Agent Control
+
+An **FSM (Finite State Machine)** is a deterministic control layer that defines:
+- which state the system is currently in,
+- what events are valid in that state,
+- and exactly which state comes next.
+
+This is one of the best ways to make LLM-driven systems safe and predictable: let the LLM decide *content* (what to say, what offer to make), while the FSM decides *control flow* (what is allowed now, what happens next).
+
+```
+STATE MACHINE = States + Events + Transition Rules
+```
+
+### Negotiation FSM Example
+
+```
+INIT
+    └─(start_negotiation)────────────► BUYER_TURN
+
+BUYER_TURN
+    └─(buyer_offer_submitted)────────► SELLER_TURN
+
+SELLER_TURN
+    ├─(seller_accepts)───────────────► AGREEMENT
+    ├─(seller_rejects_deadlock)──────► DEADLOCK
+    └─(seller_counter_offer)─────────► BUYER_TURN
+
+ANY TURN
+    └─(max_rounds_reached)───────────► DEADLOCK
+```
+
+### Why FSMs Matter for Agents
+
+- **Guardrails**: Prevent illegal actions (e.g., double-turns or accepting after deadlock).
+- **Debuggability**: You can inspect transitions and explain exactly why a run ended.
+- **Testability**: State transitions are deterministic and easy to unit test.
+- **Separation of concerns**: LLM handles strategy; FSM handles protocol correctness.
+
+In this repository, the baseline implementation in `m1_baseline/state_machine.py` demonstrates this principle directly.
+
+**Read this next (implementation walkthrough):**
+
+1. Open `m1_baseline/state_machine.py`
+2. Identify the state enum/constants and allowed transitions
+3. Trace one full path: `INIT → BUYER_TURN → SELLER_TURN → AGREEMENT`
+4. Then run `tests/test_fsm.py` to verify transition behavior
+
 ---
 
 ## 6. Multi-Agent Systems
@@ -515,6 +563,9 @@ Reactivity                If seller drops price dramatically, buyer adjusts
 
 Multi-Agent Adversarial   Buyer agent vs Seller agent with opposing goals
 
+FSM Control Layer         Deterministic state transitions for turns,
+                         agreement, and deadlock outcomes
+
 A2A Communication         Structured JSON messages between agents (see note 03)
 
 MCP Tool Use              Both agents use MCP to query external pricing and
@@ -567,7 +618,7 @@ Google ADK                Production-style agent framework (see note 05)
 | **vs LLM** | LLM is just cognition; agent is the full system |
 | **vs Workflow** | Workflow has predetermined logic; agent decides its own |
 | **Core properties** | Autonomy, Reactivity, Pro-activeness |
-| **Architectures** | ReAct (most common), Plan-Execute, Reflection |
+| **Architectures** | ReAct (most common), Plan-Execute, Reflection, FSM control layer |
 | **Multi-agent** | Adversarial, Hierarchical, Collaborative |
 | **Use agents when** | Logic cannot be predetermined; high ambiguity |
 | **Avoid agents when** | Deterministic process; speed/cost critical |

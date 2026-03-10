@@ -12,10 +12,10 @@ WHAT THIS DEMONSTRATES:
 
 ARCHITECTURE:
   main_simple.py
-    └── m3_agents/langgraph_flow.py  (manages the negotiation loop)
-          ├── m3_agents/buyer_simple.py  (GPT-4o + MCP)
+    └── m3_langgraph_multiagents/langgraph_flow.py  (manages the negotiation loop)
+          ├── m3_langgraph_multiagents/buyer_simple.py  (GPT-4o + MCP)
           │     └── m2_mcp/pricing_server.py (MCP tools)
-          └── m3_agents/seller_simple.py (GPT-4o + MCP)
+          └── m3_langgraph_multiagents/seller_simple.py (GPT-4o + MCP)
                 ├── m2_mcp/pricing_server.py (MCP tools)
                 └── m2_mcp/inventory_server.py (MCP tools)
 
@@ -128,7 +128,7 @@ async def main() -> None:
     print()
 
     # ── Run the LangGraph orchestration ──────────────────────────────────────
-    from m3_agents.langgraph_flow import run_negotiation
+    from m3_langgraph_multiagents.langgraph_flow import run_negotiation
 
     try:
         final_state = await run_negotiation(

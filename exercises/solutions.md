@@ -531,7 +531,7 @@ async def _call_pricing_mcp_stdio(tool_name: str, arguments: dict) -> dict:
 
 ## Exercise 8: Mediator Agent — Solution
 
-### `m3_agents/mediator_simple.py`:
+### `m3_langgraph_multiagents/mediator_simple.py`:
 
 ```python
 """Mediator Agent — intervenes when negotiation stalls."""
@@ -539,7 +539,7 @@ async def _call_pricing_mcp_stdio(tool_name: str, arguments: dict) -> dict:
 import json
 import os
 from openai import AsyncOpenAI
-from m3_agents.a2a_simple import A2AMessage, create_acceptance
+from m3_langgraph_multiagents.a2a_simple import A2AMessage, create_acceptance
 
 MEDIATOR_SYSTEM_PROMPT = """You are a neutral real estate mediator.
 Your job is to find a fair compromise when buyer and seller cannot agree.
@@ -606,13 +606,13 @@ Propose the fairest settlement price. Consider both parties' concession patterns
         )
 ```
 
-### LangGraph changes in `m3_agents/langgraph_flow.py`:
+### LangGraph changes in `m3_langgraph_multiagents/langgraph_flow.py`:
 
 ```python
 # Add mediator node
 async def mediator_node(state: dict) -> dict:
     """Mediator intervenes when round 4 hasn't produced agreement."""
-    from m3_agents.mediator_simple import MediatorAgent
+    from m3_langgraph_multiagents.mediator_simple import MediatorAgent
 
     mediator = MediatorAgent(session_id=state["session_id"])
     proposal = await mediator.propose_settlement(

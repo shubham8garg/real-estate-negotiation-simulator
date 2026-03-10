@@ -298,7 +298,7 @@ async def demo_section_5_connection_to_our_project(session: ClientSession) -> No
     print()
     print("Next steps:")
     print("  1. Run the pricing server:  python m2_mcp/pricing_server.py")
-    print("  2. See our buyer agent:     cat m3_agents/buyer_simple.py")
+    print("  2. See our buyer agent:     cat m3_langgraph_multiagents/buyer_simple.py")
     print("  3. Run the full demo:       python main_simple.py")
     print()
 

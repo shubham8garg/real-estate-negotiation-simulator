@@ -42,9 +42,22 @@ python main_adk.py --rounds 1             # Quick smoke test with Gemini
 | 1:05–1:50   | M2     | MCP deep dive: protocol + GitHub live demo   | `python m2_mcp/github_demo_client.py`           |
 | 1:50–2:05   | Break  | —                                            | —                                               |
 | 2:05–2:25   | M2     | Custom MCP servers + information asymmetry   | Walk `m2_mcp/pricing_server.py`                 |
-| 2:25–3:10   | M3     | LangGraph deep dive + full run               | `m3_agents/langgraph_flow.py`, `main_simple.py` |
-| 3:10–3:50   | M4     | Google ADK deep dive + full run              | `m4_adk/buyer_adk.py`, `main_adk.py`           |
+| 2:25–3:10   | M3     | LangGraph deep dive + full run               | `m3_langgraph_multiagents/langgraph_flow.py`, `main_simple.py` |
+| 3:10–3:50   | M4     | Google ADK deep dive + full run              | `m4_adk_multiagents/buyer_adk.py`, `main_adk.py`           |
 | 3:50–4:00   | Wrap   | Exercises + Q&A                              | `exercises/exercises.md`                        |
+
+### Note Mapping (Why 4 modules but 5 notes)
+
+The notes are reference guides, so they are not a strict 1:1 count with modules.
+
+| Module | Folder | Primary Notes | Why |
+|---|---|---|---|
+| M1 | `m1_baseline/` | `notes/01_agents_fundamentals.md` | Foundation concepts used by all later modules |
+| M2 | `m2_mcp/` | `notes/02_mcp_deep_dive.md` | MCP protocol and tool integration |
+| M3 | `m3_langgraph_multiagents/` | `notes/03_a2a_protocols.md` + `notes/04_langgraph_explained.md` | Module 3 has two core topics: A2A messaging and LangGraph orchestration |
+| M4 | `m4_adk_multiagents/` | `notes/05_google_adk_overview.md` | ADK-specific architecture and runtime patterns |
+
+So the extra note exists because Module 3 is intentionally split into two teachable concepts.
 
 ---
 
@@ -439,7 +452,7 @@ Raw Python:             LangGraph:
 
 #### Part B: LangGraph code walkthrough (2:35–2:55) — 20 min
 
-Open `m3_agents/langgraph_flow.py`.
+Open `m3_langgraph_multiagents/langgraph_flow.py`.
 
 **1. The State — 5 min**
 
@@ -618,7 +631,7 @@ ADK VERSION (autonomous tool use):
 
 #### Part B: ADK components (3:20–3:35) — 15 min
 
-Open `m4_adk/buyer_adk.py`.
+Open `m4_adk_multiagents/buyer_adk.py`.
 
 **1. LlmAgent — the core agent object (3 min)**
 
@@ -724,7 +737,7 @@ async for event in self._runner.run_async(
 
 **4. Dual MCPToolsets in seller — 4 min**
 
-Open `m4_adk/seller_adk.py`:
+Open `m4_adk_multiagents/seller_adk.py`:
 
 ```python
 # Pricing tools (shared with buyer)
@@ -870,7 +883,7 @@ python exercises/code_solutions/ex07_sse_client_demo.py
 
 ## COMMON ISSUES AND FIXES
 
-### "ModuleNotFoundError: No module named 'm3_agents'"
+### "ModuleNotFoundError: No module named 'm3_langgraph_multiagents'"
 ```bash
 # Must run from negotiation_workshop/ directory
 cd path/to/negotiation_workshop
@@ -927,16 +940,16 @@ pytest tests/ -v
 | Concept | One-line Definition | Where in Code |
 |---------|-------------------|---------------|
 | MCP | Standard protocol for agent ↔ external tool (3 operations: list, schema, call) | `m2_mcp/` |
-| A2A | Structured agent ↔ agent messaging with state machine validation | `m3_agents/a2a_simple.py` |
+| A2A | Structured agent ↔ agent messaging with state machine validation | `m3_langgraph_multiagents/a2a_simple.py` |
 | FSM | Termination guaranteed by empty transition sets on terminal states | `m1_baseline/state_machine.py` |
-| LangGraph StateGraph | Declarative workflow graph with shared state and conditional routing | `m3_agents/langgraph_flow.py` |
+| LangGraph StateGraph | Declarative workflow graph with shared state and conditional routing | `m3_langgraph_multiagents/langgraph_flow.py` |
 | Annotated reducer | Append-not-overwrite pattern for lists in LangGraph state | `langgraph_flow.py` line ~110 |
-| LlmAgent | ADK's agent object: model + instruction + tools (not a running process) | `m4_adk/buyer_adk.py` |
-| MCPToolset | Connects to MCP server, discovers tools, converts to Gemini function schemas | `m4_adk/buyer_adk.py` |
-| Runner | Executes ADK agent turns, returns async event stream | `m4_adk/buyer_adk.py` |
-| InMemorySessionService | ADK's per-agent conversation memory | `m4_adk/buyer_adk.py` |
+| LlmAgent | ADK's agent object: model + instruction + tools (not a running process) | `m4_adk_multiagents/buyer_adk.py` |
+| MCPToolset | Connects to MCP server, discovers tools, converts to Gemini function schemas | `m4_adk_multiagents/buyer_adk.py` |
+| Runner | Executes ADK agent turns, returns async event stream | `m4_adk_multiagents/buyer_adk.py` |
+| InMemorySessionService | ADK's per-agent conversation memory | `m4_adk_multiagents/buyer_adk.py` |
 | Information Asymmetry | Seller knows its floor via inventory server; buyer infers from market data | `m2_mcp/inventory_server.py` |
-| Context manager | Ensures MCP subprocess cleanup even on error | `m4_adk/buyer_adk.py` `__aenter__`/`__aexit__` |
+| Context manager | Ensures MCP subprocess cleanup even on error | `m4_adk_multiagents/buyer_adk.py` `__aenter__`/`__aexit__` |
 
 ---
 

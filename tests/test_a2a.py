@@ -7,7 +7,7 @@ sequences and rejects invalid transitions. No API keys required.
 Run: pytest tests/test_a2a.py -v
 """
 import pytest
-from m3_agents.a2a_simple import (
+from m3_langgraph_multiagents.a2a_simple import (
     A2AMessage,
     A2AMessageBus,
     NegotiationPayload,

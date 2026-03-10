@@ -27,7 +27,7 @@ HOW THIS CONNECTS TO THE REST OF THE WORKSHOP:
   │  state_machine.py (this file)                                   │
   │    NegotiationFSM   <-- termination guaranteed at code level      │
   │         ↓                                                       │
-  │  m3_agents/langgraph_flow.py                                │
+  │  m3_langgraph_multiagents/langgraph_flow.py                                │
   │    StateGraph       <-- termination guaranteed at workflow level  │
   │    (LangGraph IS a state machine -- but for entire workflows)    │
   └─────────────────────────────────────────────────────────────────┘

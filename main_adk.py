@@ -13,9 +13,9 @@ WHAT THIS DEMONSTRATES:
 
 ARCHITECTURE:
   main_adk.py  (orchestrator — coordinates two ADK agents)
-    ├── m4_adk/buyer_adk.py   (Gemini + MCPToolset → pricing_server)
+    ├── m4_adk_multiagents/buyer_adk.py   (Gemini + MCPToolset → pricing_server)
     │     └── m2_mcp/pricing_server.py
-    └── m4_adk/seller_adk.py  (Gemini + MCPToolset → pricing + inventory)
+    └── m4_adk_multiagents/seller_adk.py  (Gemini + MCPToolset → pricing + inventory)
           ├── m2_mcp/pricing_server.py
           └── m2_mcp/inventory_server.py
 
@@ -94,14 +94,14 @@ async def run_adk_negotiation(
     Coordination between agents is the orchestrator's job, not ADK's.
     This separation of concerns makes each agent simpler and more focused.
     """
-    from m4_adk.buyer_adk import BuyerAgentADK
-    from m4_adk.seller_adk import SellerAgentADK
-    from m4_adk.messaging_adk import (
+    from m4_adk_multiagents.buyer_adk import BuyerAgentADK
+    from m4_adk_multiagents.seller_adk import SellerAgentADK
+    from m4_adk_multiagents.messaging_adk import (
         NegotiationSession,
         print_round_summary,
         print_final_result,
     )
-    from m3_agents.a2a_simple import A2AMessage
+    from m3_langgraph_multiagents.a2a_simple import A2AMessage
 
     # Create session tracker (holds negotiation state for ADK version)
     session = NegotiationSession(
@@ -183,8 +183,8 @@ async def _run_check() -> None:
     Exits 0 on success, 1 on any failure — safe to run repeatedly
     without consuming Gemini quota.
     """
-    from m4_adk.buyer_adk import BuyerAgentADK
-    from m4_adk.seller_adk import SellerAgentADK
+    from m4_adk_multiagents.buyer_adk import BuyerAgentADK
+    from m4_adk_multiagents.seller_adk import SellerAgentADK
 
     print("ADK setup check (no Gemini calls)...")
 

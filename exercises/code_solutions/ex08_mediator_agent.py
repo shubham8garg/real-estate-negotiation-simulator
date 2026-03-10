@@ -9,7 +9,7 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from openai import AsyncOpenAI
-from m3_agents.a2a_simple import A2AMessage
+from m3_langgraph_multiagents.a2a_simple import A2AMessage
 
 MEDIATOR_SYSTEM_PROMPT = """You are a neutral real estate mediator.
 Your job is to find a fair compromise when buyer and seller cannot agree.

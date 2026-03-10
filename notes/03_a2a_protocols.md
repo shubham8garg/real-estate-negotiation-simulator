@@ -14,6 +14,7 @@
 7. [A2A Transport Options](#7-a2a-transport-options)
 8. [Error Handling in A2A Communication](#8-error-handling-in-a2a-communication)
 9. [Implementing A2A in Python](#9-implementing-a2a-in-python)
+    - [Google ADK A2A Demo in This Repo](#91-google-adk-a2a-demo-in-this-repo)
 10. [Production A2A Patterns](#10-production-a2a-patterns)
 11. [Common Misconceptions](#11-common-misconceptions)
 
@@ -543,7 +544,7 @@ while not fsm.is_terminal():
 ### Progression: FSM → LangGraph
 
 ```
-m1_baseline/state_machine.py          m3_agents/langgraph_flow.py
+m1_baseline/state_machine.py          m3_langgraph_multiagents/langgraph_flow.py
 ───────────────────────────        ─────────────────────────────────────
 NegotiationFSM                     StateGraph(NegotiationState)
   .state = NEGOTIATING               route_after_seller()
@@ -699,7 +700,7 @@ error_msg = A2AMessage(
 
 ## 9. Implementing A2A in Python
 
-See the full implementation in `m3_agents/a2a_simple.py`. Here's the core pattern:
+See the full implementation in `m3_langgraph_multiagents/a2a_simple.py`. Here's the core pattern:
 
 ### Message Router
 
@@ -771,6 +772,24 @@ async def run_negotiation():
 
     return bus.history
 ```
+
+### 9.1 Google ADK A2A Demo in This Repo
+
+If you want the **Google ADK version** of A2A (not the in-memory `A2AMessageBus` in module 3), run:
+
+```bash
+python m4_adk_multiagents/a2a_adk_demo.py --rounds 3
+```
+
+What this demonstrates:
+- Buyer and seller are both ADK `LlmAgent`-based agents
+- The orchestrator mediates round-by-round message passing between ADK sessions
+- Message structure is still enforced with the shared `A2AMessage` schema
+
+Key files:
+- `m4_adk_multiagents/a2a_adk_demo.py` (focused ADK A2A demo runner)
+- `m4_adk_multiagents/buyer_adk.py` and `m4_adk_multiagents/seller_adk.py` (ADK agents)
+- `m4_adk_multiagents/messaging_adk.py` (ADK-side message formatting/parsing layer)
 
 ---
 
