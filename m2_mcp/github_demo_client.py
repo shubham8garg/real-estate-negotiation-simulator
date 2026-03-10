@@ -40,7 +40,38 @@ from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 
 
+def _load_env_file_if_present(env_path: str = ".env") -> None:
+    """
+    Load KEY=VALUE pairs from a local .env file into process environment.
+
+    Notes:
+    - Existing environment variables are preserved (shell/export wins).
+    - This keeps the demo easy to run across shells without extra setup.
+    """
+    if not os.path.exists(env_path):
+        return
+
+    try:
+        with open(env_path, "r", encoding="utf-8") as env_file:
+            for raw_line in env_file:
+                line = raw_line.strip()
+                if not line or line.startswith("#") or "=" not in line:
+                    continue
+
+                key, value = line.split("=", 1)
+                key = key.strip()
+                value = value.strip().strip('"').strip("'")
+
+                if key and key not in os.environ:
+                    os.environ[key] = value
+    except OSError:
+        # Non-fatal for demo use; normal env vars may still be present.
+        pass
+
+
 # ─── Configuration ────────────────────────────────────────────────────────────
+
+_load_env_file_if_present()
 
 GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN", "").strip()
 
@@ -140,23 +171,50 @@ async def demo_section_3_tool_calls(session: ClientSession) -> None:
     print("=" * 60)
     print()
 
+    tools_response = await session.list_tools()
+    tools_by_name = {tool.name: tool for tool in tools_response.tools}
+
+    def build_args_from_schema(tool_name: str, mappings: dict[str, Any]) -> dict[str, Any]:
+        """Build arguments using only keys present in the tool's input schema."""
+        tool = tools_by_name.get(tool_name)
+        if tool is None:
+            return {}
+
+        input_schema = tool.inputSchema.model_dump() if hasattr(tool.inputSchema, "model_dump") else tool.inputSchema
+        properties = input_schema.get("properties", {}) if isinstance(input_schema, dict) else {}
+
+        resolved_args: dict[str, Any] = {}
+        for param_name, candidate_values in mappings.items():
+            if param_name not in properties:
+                continue
+            for candidate in candidate_values:
+                if candidate is not None:
+                    resolved_args[param_name] = candidate
+                    break
+
+        return resolved_args
+
     # ── Tool Call 1: Get current user ────────────────────────────────────────
     print("Tool Call 1: get_me()")
     print("   Purpose: Get the authenticated user's info")
     print("   Arguments: none")
     print()
 
-    try:
-        me_result = await session.call_tool("get_me", {})
-        me_data = _parse_tool_result(me_result)
+    if "get_me" in tools_by_name:
+        try:
+            me_result = await session.call_tool("get_me", {})
+            me_data = _parse_tool_result(me_result)
 
-        print(f"   Result:")
-        print(f"      Username: {me_data.get('login', 'N/A')}")
-        print(f"      Name:     {me_data.get('name', 'N/A')}")
-        print(f"      Public repos: {me_data.get('public_repos', 'N/A')}")
-        print()
-    except Exception as e:
-        print(f"   get_me failed: {e}")
+            print(f"   Result:")
+            print(f"      Username: {me_data.get('login', 'N/A')}")
+            print(f"      Name:     {me_data.get('name', 'N/A')}")
+            print(f"      Public repos: {me_data.get('public_repos', 'N/A')}")
+            print()
+        except Exception as e:
+            print(f"   get_me failed: {e}")
+            print()
+    else:
+        print("   Skipped: current server version does not expose get_me().")
         print()
 
     # ── Tool Call 2: Search repositories ─────────────────────────────────────
@@ -166,12 +224,19 @@ async def demo_section_3_tool_calls(session: ClientSession) -> None:
     print()
 
     try:
-        search_result = await session.call_tool(
+        search_repos_args = build_args_from_schema(
             "search_repositories",
             {
-                "query": "real estate pricing python",
-                "perPage": 5
-            }
+                "query": ["real estate pricing python"],
+                "q": ["real estate pricing python"],
+                "perPage": [5],
+                "per_page": [5],
+                "limit": [5],
+            },
+        )
+        search_result = await session.call_tool(
+            "search_repositories",
+            search_repos_args,
         )
         search_data = _parse_tool_result(search_result)
 
@@ -195,12 +260,19 @@ async def demo_section_3_tool_calls(session: ClientSession) -> None:
     print()
 
     try:
-        code_result = await session.call_tool(
+        search_code_args = build_args_from_schema(
             "search_code",
             {
-                "query": "def negotiate real estate python",
-                "perPage": 3
-            }
+                "query": ["def negotiate real estate python"],
+                "q": ["def negotiate real estate python"],
+                "perPage": [3],
+                "per_page": [3],
+                "limit": [3],
+            },
+        )
+        code_result = await session.call_tool(
+            "search_code",
+            search_code_args,
         )
         code_data = _parse_tool_result(code_result)
         items = code_data.get("items", [])

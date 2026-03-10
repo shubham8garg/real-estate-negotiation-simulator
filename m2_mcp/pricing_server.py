@@ -169,15 +169,17 @@ def get_market_price(
         Comprehensive pricing data including comparables, market analysis,
         and negotiation context.
     """
-    # Normalize address for lookup
+    # Step 1) Normalize input so equivalent address strings map consistently.
+    # Example: extra spaces/casing differences should still hit the same record.
     normalized = address.lower().strip()
 
-    # Look up known property
+    # Step 2) Try deterministic lookup first (repeatable workshop behavior).
     property_data = PROPERTY_DATABASE.get(normalized)
 
     if not property_data:
-        # Generate realistic data for unknown addresses
-        # In production: call Zillow/Redfin API here
+        # Step 3) Fallback path for unknown properties.
+        # We synthesize plausible values so demos continue even for new addresses.
+        # In production this branch would call an external data provider.
         base_price = random.randint(380_000, 550_000)
         sqft = random.randint(1_800, 3_200)
         estimated_value = int(base_price * random.uniform(0.93, 0.99))
@@ -214,7 +216,8 @@ def get_market_price(
             ]
         }
 
-    # Calculate market statistics
+    # Step 4) Derive summary metrics that agents can cite in negotiation.
+    # Keeping this logic in the server avoids duplicate calculations in clients.
     comp_prices = [c["price"] for c in property_data["comparable_sales"]]
     avg_comp_price = int(sum(comp_prices) / len(comp_prices))
     median_comp_price = sorted(comp_prices)[len(comp_prices) // 2]
@@ -222,10 +225,11 @@ def get_market_price(
         (property_data["list_price"] - avg_comp_price) / avg_comp_price * 100, 1
     )
 
-    # Get market condition for this ZIP
+    # Step 5) Attach ZIP-level market context to ground offer strategy.
     zip_code = property_data.get("zip_code", "default")
     market = MARKET_DATA.get(zip_code, MARKET_DATA["default"])
 
+    # Final MCP payload: structured JSON-friendly dict returned to caller.
     return {
         "address": property_data["display_address"],
         "property_details": {
@@ -307,14 +311,14 @@ def calculate_discount(
     Returns:
         Discount analysis with suggested offer ranges and negotiation tips.
     """
-    # Base discount rates by market condition
+    # Step 1) Start with baseline discount bands from market temperature.
     base_rates: dict[str, dict[str, float]] = {
         "hot":      {"min": 0.000, "max": 0.020},   # 0–2%   (seller's market)
         "balanced": {"min": 0.020, "max": 0.050},   # 2–5%
         "cold":     {"min": 0.050, "max": 0.100},   # 5–10%  (buyer's market)
     }
 
-    # Days on market adjustment (each tier adds to discount room)
+    # Step 2) Add time-on-market pressure (stale listings usually become flexible).
     dom_adjustment: float = 0.0
     if days_on_market >= 90:
         dom_adjustment = 0.040
@@ -323,7 +327,8 @@ def calculate_discount(
     elif days_on_market >= 30:
         dom_adjustment = 0.012
 
-    # Property condition adjustment
+    # Step 3) Add condition-based pricing pressure.
+    # Worse condition => larger expected discount.
     condition_adjustment: dict[str, float] = {
         "excellent": -0.010,  # less room to negotiate
         "good":       0.000,
@@ -332,18 +337,18 @@ def calculate_discount(
     }
     cond_adj = condition_adjustment.get(property_condition, 0.0)
 
-    # Calculate total discount range
+    # Step 4) Combine effects and clamp to sane bounds.
     rates = base_rates.get(market_condition, base_rates["balanced"])
     min_discount = max(0, rates["min"] + dom_adjustment + cond_adj)
     max_discount = min(0.20, rates["max"] + dom_adjustment + cond_adj)  # cap at 20%
 
-    # Calculate price points
+    # Step 5) Convert discount percentages into concrete offer anchors.
     offer_conservative = int(base_price * (1 - min_discount))
     offer_moderate = int(base_price * (1 - (min_discount + max_discount) / 2))
     offer_aggressive = int(base_price * (1 - max_discount))
     offer_ultra_aggressive = int(base_price * (1 - max_discount - 0.02))
 
-    # Generate negotiation tips based on conditions
+    # Step 6) Produce qualitative guidance so the output is not only numeric.
     tips: list[str] = []
 
     if market_condition == "hot":
@@ -376,6 +381,7 @@ def calculate_discount(
     if property_condition in ("fair", "poor"):
         tips.append("Request inspection and estimate repair costs before finalizing offer")
 
+    # Final MCP payload returned to client/agent.
     return {
         "inputs": {
             "base_price": base_price,
@@ -437,12 +443,12 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     if args.check:
+        # Lightweight health check used by tests/scripts to validate imports/tool registration.
         tools = list(mcp._tool_manager._tools.keys())
         print(f"pricing_server OK  tools={tools}")
         sys.exit(0)
     elif args.sse:
-        # SSE mode: run as standalone HTTP server
-        # Multiple agents can connect to this same server instance
+        # SSE mode: run as HTTP endpoint for network clients and multi-client setups.
         mcp.settings.host = args.host
         mcp.settings.port = args.port
         print(f"Real Estate Pricing MCP Server (SSE mode)")
@@ -450,7 +456,5 @@ if __name__ == "__main__":
         print(f"   Connect via: SseServerParams(url='http://localhost:{args.port}/sse')")
         mcp.run(transport="sse")
     else:
-        # stdio mode: communicate via stdin/stdout (default)
-        # Client spawns this script as a subprocess
-        # Used by: simple_agents version and ADK with StdioServerParameters
+        # stdio mode (default): parent process spawns this server and talks via pipes.
         mcp.run()

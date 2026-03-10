@@ -145,11 +145,12 @@ def get_inventory_level(zip_code: str) -> dict:
     Returns:
         Inventory statistics, market condition, and negotiation context.
     """
-    # Look up data for this ZIP
+    # Step 1) Lookup known ZIP data for deterministic workshop outputs.
     data = INVENTORY_DATA.get(zip_code)
 
     if not data:
-        # Generate realistic data for unknown ZIP codes
+        # Step 2) Fallback for unknown ZIPs so tool stays useful for ad-hoc demos.
+        # In production this would query MLS/provider APIs.
         absorption = round(random.uniform(2.0, 5.0), 1)
         dom = random.randint(15, 45)
         active = random.randint(30, 100)
@@ -178,7 +179,8 @@ def get_inventory_level(zip_code: str) -> dict:
             "notes": f"Data generated for {zip_code}. Absorption rate: {absorption} months.",
         }
 
-    # Add derived analysis
+    # Step 3) Add negotiation interpretation layer on top of raw market metrics.
+    # This keeps clients simple: they receive both data and decision context.
     condition = data["market_condition"]
     buyer_leverage = {
         "hot": "Minimal — seller has leverage",
@@ -192,6 +194,7 @@ def get_inventory_level(zip_code: str) -> dict:
         "cold": "5–10% — significant negotiation room",
     }.get(condition, "Unknown")
 
+    # Final MCP payload returned to caller.
     return {
         "zip_code": data["zip_code"],
         "location": {
@@ -261,11 +264,12 @@ def get_minimum_acceptable_price(property_id: str) -> dict:
     Returns:
         Seller's floor price, motivation level, and negotiation constraints.
     """
-    # Look up seller constraints
+    # Step 1) Resolve seller-specific constraints for the property.
     constraints = SELLER_CONSTRAINTS.get(property_id)
 
     if not constraints:
-        # Generate for unknown properties
+        # Step 2) Generate fallback constraints for unknown IDs.
+        # This preserves demo continuity while clearly marking simulated behavior.
         list_price = random.randint(400_000, 600_000)
         min_price = int(list_price * random.uniform(0.90, 0.95))
         ideal_price = int(list_price * random.uniform(0.96, 0.99))
@@ -286,12 +290,13 @@ def get_minimum_acceptable_price(property_id: str) -> dict:
             "dealbreakers": [f"Cannot go below ${min_price:,}"],
         }
 
-    # Calculate negotiation room
+    # Step 3) Compute negotiation room so seller agent can set strategy bounds.
     list_price = constraints["list_price"]
     min_price = constraints["minimum_acceptable_price"]
     ideal_price = constraints["ideal_price"]
     negotiation_room = list_price - min_price
 
+    # Final payload intentionally includes both numbers and strategy hints.
     return {
         "property_id": constraints["property_id"],
         "address": constraints["display_address"],
@@ -358,14 +363,17 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     if args.check:
+        # Lightweight health check for CI/scripts.
         tools = list(mcp._tool_manager._tools.keys())
         print(f"inventory_server OK  tools={tools}")
         sys.exit(0)
     elif args.sse:
+        # SSE mode: long-running HTTP endpoint, suitable for multiple clients.
         mcp.settings.host = args.host
         mcp.settings.port = args.port
         print(f"Real Estate Inventory MCP Server (SSE mode)")
         print(f"   Listening on: http://{args.host}:{args.port}/sse")
         mcp.run(transport="sse")
     else:
+        # stdio mode: spawned subprocess transport (default for in-process agent orchestration).
         mcp.run()
