@@ -41,6 +41,8 @@ negotiation_workshop/
 │   ├── README.md                      # Module guide for learners
 │   ├── naive_negotiation.py           # Intentionally broken (10 failure modes)
 │   ├── state_machine.py               # FSM that fixes termination
+│   ├── exercises/                      # Hands-on coding exercises for Module 1
+│   ├── solution/                       # Worked solutions for Module 1 exercises
 │   └── notes/
 │       └── agents_fundamentals.md     # Reference: agent fundamentals
 │
@@ -49,6 +51,8 @@ negotiation_workshop/
 │   ├── github_demo_client.py          # Connect to GitHub's real MCP server
 │   ├── pricing_server.py              # Custom MCP: market pricing tools
 │   ├── inventory_server.py            # Custom MCP: inventory + seller constraints
+│   ├── exercises/                      # Hands-on coding exercises for Module 2
+│   ├── solution/                       # Worked solutions for Module 2 exercises
 │   └── notes/
 │       └── mcp_deep_dive.md           # Reference: MCP protocol deep dive
 │
@@ -58,6 +62,8 @@ negotiation_workshop/
 │   ├── buyer_simple.py                # Buyer agent (OpenAI GPT-4o)
 │   ├── seller_simple.py               # Seller agent (OpenAI GPT-4o)
 │   ├── langgraph_flow.py              # LangGraph negotiation workflow
+│   ├── exercises/                      # Hands-on coding exercises for Module 3
+│   ├── solution/                       # Worked solutions for Module 3 exercises
 │   └── notes/
 │       └── langgraph_explained.md     # Reference: LangGraph deep dive
 │
@@ -68,24 +74,12 @@ negotiation_workshop/
 │   ├── a2a_protocol_seller_server.py  # True networked A2A protocol server (A2A SDK)
 │   ├── a2a_protocol_http_orchestrator.py # Multi-round HTTP A2A orchestrator (ADK-native state)
 │   ├── a2a_protocol_buyer_client_demo.py # Single-turn A2A protocol client demo
+│   ├── exercises/                      # Hands-on coding exercises for Module 4
+│   ├── solution/                       # Worked solutions for Module 4 exercises
 │   └── notes/
 │       ├── a2a_protocols.md           # Reference: A2A protocol deep dive
 │       ├── google_adk_overview.md     # Reference: Google ADK overview
 │       └── langgraph_adk_a2a_comparison.md  # Reference: cross-module comparison
-│
-├── exercises/
-│   ├── exercises.md                   # 12 exercises (Parts A–D, conceptual + coding)
-│   ├── solutions.md                   # Complete written solutions with code snippets
-│   └── code_solutions/                # Runnable code solutions (Exercises 4–12)
-│       ├── ex04_property_inspection_tool.py
-│       ├── ex05_anchoring_strategy.py
-│       ├── ex06_deadlock_detection_tool.py
-│       ├── ex07_sse_client_demo.py
-│       ├── ex08_mediator_agent.py
-│       ├── ex09_negotiation_memory.py
-│       ├── ex10_negotiation_analytics.py
-│       ├── ex11_support_triage_langgraph_runner.py
-│       └── ex12_support_triage_adk_runner.py
 │
 ├── m3_langgraph_multiagents/main_langgraph_multiagent.py             # Entry point — Module 3 (OpenAI + LangGraph)
 ├── m4_adk_multiagents/a2a_protocol_seller_server.py                  # Entry point — Module 4 (A2A server)
@@ -196,19 +190,14 @@ python m4_adk_multiagents/a2a_protocol_http_orchestrator.py --seller-url http://
 python m4_adk_multiagents/a2a_protocol_buyer_client_demo.py --seller-url http://127.0.0.1:9102
 ```
 
-### 6. Exercise 7 SSE Prerequisite
+### 6. Module Exercises
 
-If you run `exercises/code_solutions/ex07_sse_client_demo.py`, start the pricing MCP server in SSE mode first:
+Each module now contains its own practice set:
 
-```bash
-python m2_mcp/pricing_server.py --sse --port 8001
-```
-
-Then run the exercise script in another terminal:
-
-```bash
-python exercises/code_solutions/ex07_sse_client_demo.py
-```
+- `m1_baseline/exercises/` and `m1_baseline/solution/`
+- `m2_mcp/exercises/` and `m2_mcp/solution/`
+- `m3_langgraph_multiagents/exercises/` and `m3_langgraph_multiagents/solution/`
+- `m4_adk_multiagents/exercises/` and `m4_adk_multiagents/solution/`
 
 ---
 
@@ -302,7 +291,7 @@ See `INSTRUCTOR_GUIDE.md` for the full 4-hour script, talking points, and debrie
 | 1:30–2:05 | M2 | Custom MCP servers (break at 1:30) | `m2_mcp/pricing_server.py` |
 | 2:05–2:50 | M3 | Pure LangGraph multi-agent flow + full simple run | `m3_langgraph_multiagents/`, `m3_langgraph_multiagents/main_langgraph_multiagent.py` |
 | 2:50–3:50 | M4 | True A2A protocol demos (ADK backing) | `m4_adk_multiagents/a2a_protocol_seller_server.py`, `m4_adk_multiagents/a2a_protocol_buyer_client_demo.py` |
-| 3:50–4:00 | Wrap | Exercises + Q&A | `exercises/code_solutions/README.md` |
+| 3:50–4:00 | Wrap | Exercises + Q&A | `m1_baseline/exercises/`, `m2_mcp/exercises/`, `m3_langgraph_multiagents/exercises/`, `m4_adk_multiagents/exercises/` |
 
 ---
 
@@ -394,7 +383,7 @@ In `m3_langgraph_multiagents/buyer_simple.py`, modify `BUYER_SYSTEM_PROMPT`:
 
 ### Add a Mediator Agent
 
-See `exercises/solutions.md` for the complete mediator implementation.
+Start from `m3_langgraph_multiagents/langgraph_flow.py` and add a mediator node plus conditional routing between buyer and seller.
 
 ---
 

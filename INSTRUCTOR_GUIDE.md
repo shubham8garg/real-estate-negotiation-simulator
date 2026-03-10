@@ -37,6 +37,7 @@ At the start of the workshop, explicitly orient learners to the repo layout:
 
 - Each module folder (`m1_baseline/`, `m2_mcp/`, `m3_langgraph_multiagents/`, `m4_adk_multiagents/`) has its own `README.md`.
 - That module `README.md` explains what the module demonstrates and how to run it.
+- Each module includes `exercises/` (learner tasks) and `solution/` (worked answers with code changes).
 - Each module also has a `notes/` folder for deeper conceptual material.
 - Encourage participants to treat module `README.md` as the runbook and `notes/` as the reference.
 
@@ -54,7 +55,7 @@ At the start of the workshop, explicitly orient learners to the repo layout:
 | 1:45–2:05   | M2     | Custom MCP servers + information asymmetry   | Walk `m2_mcp/pricing_server.py`                 |
 | 2:05–2:50   | M3     | LangGraph deep dive + full run               | `m3_langgraph_multiagents/langgraph_flow.py`, `m3_langgraph_multiagents/main_langgraph_multiagent.py` |
 | 2:50–3:50   | M4     | A2A protocol: networked agents               | `m4_adk_multiagents/a2a_protocol_seller_server.py`, `m4_adk_multiagents/a2a_protocol_buyer_client_demo.py` |
-| 3:50–4:00   | Wrap   | Exercises + Q&A                              | `exercises/code_solutions/README.md`            |
+| 3:50–4:00   | Wrap   | Exercises + Q&A                              | `m1_baseline/exercises/`, `m2_mcp/exercises/`, `m3_langgraph_multiagents/exercises/`, `m4_adk_multiagents/exercises/` |
 
 ### Note Mapping
 
@@ -1052,36 +1053,42 @@ python m4_adk_multiagents/a2a_protocol_buyer_client_demo.py --seller-url http://
 ### WRAP-UP (3:50–4:00): Exercises + Q&A
 
 ```bash
-start exercises/code_solutions/README.md    # Windows
-open exercises/code_solutions/README.md     # Mac
+start m1_baseline/exercises                 # Windows
+open m1_baseline/exercises                  # Mac
 ```
+
+Then quickly point learners to all module exercise folders:
+
+- `m1_baseline/exercises/` and `m1_baseline/solution/`
+- `m2_mcp/exercises/` and `m2_mcp/solution/`
+- `m3_langgraph_multiagents/exercises/` and `m3_langgraph_multiagents/solution/`
+- `m4_adk_multiagents/exercises/` and `m4_adk_multiagents/solution/`
 
 **RECOMMENDED EXERCISES by difficulty:**
 
 **Easy (15 min) — no API keys:**
-- Exercise 1: Define MCP, A2A, FSM in your own words. How does each solve a specific failure from naive_negotiation.py?
-- Run `pytest tests/ -v` and explain what each test class is verifying.
+- Module 1 Exercise 1: `m1_baseline/exercises/ex01_identify_failure_modes.md`
+- Module 1 Exercise 2: `m1_baseline/exercises/ex02_fsm_termination_check.md`
 
 **Medium (30 min) — requires API keys:**
-- Exercise 5: Add `get_school_district_rating(zip_code)` to the pricing server and wire it into the buyer's prompt
-- Exercise 6: Add retry logic with exponential backoff to `call_pricing_mcp()` in buyer_simple.py
+- Module 2 Exercise 1: `m2_mcp/exercises/ex01_find_mcp_tool.md`
+- Module 3 Exercise 1: `m3_langgraph_multiagents/exercises/ex01_trace_graph_flow.md`
 
 **Hard (45+ min):**
-- Exercise 7: Implement the SSE client — connect buyer_simple.py to pricing_server running with `--sse --port 8001`
-- Exercise 8: Add a mediator agent to LangGraph — triggers when gap > $20K and offers a split-the-difference counter
-- Exercise 9: Replace InMemorySessionService with a file-based session to make the ADK negotiation resumable
+- Module 3 Exercise 2: `m3_langgraph_multiagents/exercises/ex02_run_two_rounds.md`
+- Module 4 Exercise 1: `m4_adk_multiagents/exercises/ex01_fetch_agent_card.md`
+- Module 4 Exercise 2: `m4_adk_multiagents/exercises/ex02_one_round_orchestrator.md`
 
-**Part D (45+ min):**
-- Exercise 11: Run and extend `exercises/code_solutions/ex11_support_triage_langgraph_runner.py`
-- Exercise 12: Run and extend `exercises/code_solutions/ex12_support_triage_adk_runner.py`
+**Solution lookup:**
+- Match each exercise with its paired file in the module's `solution/` folder.
 
-**Exercise 7 prerequisite (SSE):**
+**Module 2 server prerequisite (for MCP-focused exercises):**
 ```bash
 # Terminal 1
 python m2_mcp/pricing_server.py --sse --port 8001
 
 # Terminal 2
-python exercises/code_solutions/ex07_sse_client_demo.py
+python m2_mcp/github_demo_client.py
 ```
 
 **Q&A prompts if the group is quiet:**
@@ -1123,13 +1130,13 @@ npx --version       # must work
 npx clear-npx-cache
 ```
 
-### Exercise 12 fails with provider quota / rate-limit errors
-This usually means provider quota is exhausted for the active project.
+### Module 4 exercise run fails with provider quota / rate-limit errors
+This usually means provider quota is exhausted for the active project or API key limits are reached.
 
 ```bash
 # Retry later, or use a key/project with available quota.
-# The script now exits with a clear quota message.
-python exercises/code_solutions/ex12_support_triage_adk_runner.py
+# Example affected command:
+python m4_adk_multiagents/a2a_protocol_http_orchestrator.py --seller-url http://127.0.0.1:9102 --rounds 1
 ```
 
 ### Windows Unicode errors in baseline
