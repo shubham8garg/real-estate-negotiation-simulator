@@ -1,7 +1,7 @@
-# 05 — Google ADK Overview
+# Google ADK Overview
 ## Building Production-Grade Agents with Google's Agent Development Kit
 
-See also: [06 — LangGraph vs Google ADK vs A2A](06_langgraph_adk_a2a_comparison.md) for the orchestration and interoperability comparison index.
+See also: [LangGraph vs Google ADK vs A2A](langgraph_adk_a2a_comparison.md) for the orchestration and interoperability comparison index.
 
 ---
 
@@ -375,7 +375,7 @@ negotiation_loop = LoopAgent(
 )
 ```
 
-In this repo's runnable orchestrator demo (`m4_adk_multiagents/adk_orchestrator_agents_demo.py`), we intentionally use this pattern with only two sub-agents (`buyer_agent`, `seller_agent`) so negotiation orchestration is explicit and easy to trace.
+In this repo's runnable orchestrator demo (`m4_adk_multiagents/bonus/adk_orchestrator_agents_demo.py`), we intentionally use this pattern with only two sub-agents (`buyer_agent`, `seller_agent`) so negotiation orchestration is explicit and easy to trace.
 
 Other orchestration patterns are still valid depending on use case:
 - `SequentialAgent`: pipeline steps like `research → validate → recommend`
@@ -874,7 +874,7 @@ buyer_agent = LlmAgent(
 | **Generator-Critic** | Agent A drafts, Agent B reviews via state | Quality-sensitive output requiring review cycles |
 | **Iterative Refinement** | `LoopAgent` with escalation signals until quality threshold met | Negotiation, code generation, writing tasks |
 
-**In our workshop, we use the Adversarial pattern** — two independent agents (buyer and seller) coordinated by the application (`m4_adk_multiagents/main_adk_multiagent.py`). This is not a standard ADK hierarchy — the agents don't delegate to each other. The coordinator logic in `m4_adk_multiagents/main_adk_multiagent.py` manages the turn loop manually.
+**In our workshop, we use the Adversarial pattern** — two independent agents (buyer and seller) coordinated by the application (`m4_adk_multiagents/bonus/main_adk_multiagent.py`). This is not a standard ADK hierarchy — the agents don't delegate to each other. The coordinator logic in `m4_adk_multiagents/bonus/main_adk_multiagent.py` manages the turn loop manually.
 
 ### Agent Hierarchy Design Principles
 
@@ -1058,7 +1058,7 @@ We implement both to compare:
    - MCP via Python client
    - LangGraph for workflow management
 
-2. **Google ADK** (`m4_adk_multiagents/`, `m4_adk_multiagents/main_adk_multiagent.py`)
+2. **Google ADK** (`m4_adk_multiagents/`, `m4_adk_multiagents/a2a_protocol_seller_server.py`)
    - Use when building for production
    - Gemini 2.0 Flash (free tier)
    - MCP via native MCPToolset
@@ -1108,5 +1108,5 @@ We implement both to compare:
 
 ---
 
-*← [04 — LangGraph Explained](04_langgraph_explained.md)*
+*← [LangGraph Explained](../../m3_langgraph_multiagents/notes/langgraph_explained.md)*
 *→ [Exercises](../exercises/exercises.md)*

@@ -1,4 +1,4 @@
-# 01 — Agent Fundamentals
+# Agent Fundamentals
 ## A Complete Guide for Engineers New to AI Agents
 
 ---
@@ -625,4 +625,4 @@ Google ADK                Production-style agent framework (see note 05)
 
 ---
 
-*Next: [02 — MCP Deep Dive →](02_mcp_deep_dive.md)*
+*Next: [MCP Deep Dive →](../../m2_mcp/notes/mcp_deep_dive.md)*

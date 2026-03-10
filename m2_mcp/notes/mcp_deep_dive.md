@@ -1,4 +1,4 @@
-# 02 — MCP Deep Dive
+# MCP Deep Dive
 ## Model Context Protocol: How Agents Connect to the World
 
 ---
@@ -846,5 +846,5 @@ Use MCP when:                         Use direct API when:
 
 ---
 
-*← [01 — Agent Fundamentals](01_agents_fundamentals.md)*
-*→ [03 — A2A Protocols](03_a2a_protocols.md)*
+*← [Agent Fundamentals](../../m1_baseline/notes/agents_fundamentals.md)*
+*→ [A2A Protocols](../../m4_adk_multiagents/notes/a2a_protocols.md)*

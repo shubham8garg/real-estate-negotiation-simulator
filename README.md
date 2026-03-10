@@ -38,41 +38,48 @@ Folders are numbered in teaching order. Each module introduces one new concept.
 negotiation_workshop/
 │
 ├── m1_baseline/                       # MODULE 1 — Start here. Watch it break.
+│   ├── README.md                      # Module guide for learners
 │   ├── naive_negotiation.py           # Intentionally broken (10 failure modes)
-│   └── state_machine.py               # FSM that fixes termination (Layer 7)
+│   ├── state_machine.py               # FSM that fixes termination
+│   └── notes/
+│       └── agents_fundamentals.md     # Reference: agent fundamentals
 │
 ├── m2_mcp/                            # MODULE 2 — External data via MCP
+│   ├── README.md                      # Module guide for learners
 │   ├── github_demo_client.py          # Connect to GitHub's real MCP server
 │   ├── pricing_server.py              # Custom MCP: market pricing tools
-│   └── inventory_server.py            # Custom MCP: inventory + seller constraints
+│   ├── inventory_server.py            # Custom MCP: inventory + seller constraints
+│   └── notes/
+│       └── mcp_deep_dive.md           # Reference: MCP protocol deep dive
 │
-├── m3_langgraph_multiagents/                         # MODULE 3 — Pure LangGraph multi-agent workflow
-│   ├── README.md                      # File-by-file guide for Module 3
+├── m3_langgraph_multiagents/          # MODULE 3 — Pure LangGraph multi-agent workflow
+│   ├── README.md                      # Module guide for learners
 │   ├── negotiation_types.py           # Internal state/message types for LangGraph
 │   ├── buyer_simple.py                # Buyer agent (OpenAI GPT-4o)
 │   ├── seller_simple.py               # Seller agent (OpenAI GPT-4o)
-│   └── langgraph_flow.py              # LangGraph negotiation workflow
+│   ├── langgraph_flow.py              # LangGraph negotiation workflow
+│   └── notes/
+│       └── langgraph_explained.md     # Reference: LangGraph deep dive
 │
-├── m4_adk_multiagents/                            # MODULE 4 — Google ADK + Gemini
-│   ├── README.md                      # File-by-file guide for Module 4
+├── m4_adk_multiagents/                # MODULE 4 — Google ADK + true A2A protocol
+│   ├── README.md                      # Module guide for learners
 │   ├── messaging_adk.py               # ADK response parsing + session tracking
 │   ├── adk_a2a_types.py               # Module 4 ADK-native message model
 │   ├── buyer_adk.py                   # Buyer agent (Gemini 2.0 Flash via ADK)
 │   ├── seller_adk.py                  # Seller agent (Gemini 2.0 Flash via ADK)
 │   ├── a2a_protocol_seller_server.py  # True networked A2A protocol server (A2A SDK)
-│   └── a2a_protocol_buyer_client_demo.py # True networked A2A protocol client demo
+│   ├── a2a_protocol_buyer_client_demo.py # True networked A2A protocol client demo
+│   ├── bonus/                         # Bonus demos (not core teaching)
+│   │   ├── main_adk_multiagent.py     # ADK agents in-process (no network, no A2A)
+│   │   └── adk_orchestrator_agents_demo.py # LoopAgent orchestration demo
+│   └── notes/
+│       ├── a2a_protocols.md           # Reference: A2A protocol deep dive
+│       ├── google_adk_overview.md     # Reference: Google ADK overview
+│       └── langgraph_adk_a2a_comparison.md  # Reference: cross-module comparison
 │
 ├── tests/                             # Test suite (no API keys needed)
 │   ├── test_fsm.py                    # FSM termination guarantee tests
 │   └── test_a2a.py                    # Module 3 message helper/schema tests
-│
-├── notes/                             # Reference documentation
-│   ├── 01_agents_fundamentals.md
-│   ├── 02_mcp_deep_dive.md
-│   ├── 03_a2a_protocols.md
-│   ├── 04_langgraph_explained.md
-│   ├── 05_google_adk_overview.md
-│   └── 06_langgraph_adk_a2a_comparison.md
 │
 ├── exercises/
 │   ├── exercises.md                   # 12 exercises (Parts A–D, conceptual + coding)
@@ -88,31 +95,30 @@ negotiation_workshop/
 │       ├── ex11_support_triage_langgraph_runner.py
 │       └── ex12_support_triage_adk_runner.py
 │
-├── m3_langgraph_multiagents/main_langgraph_multiagent.py                     # Entry point — Module 3 (OpenAI + LangGraph)
-├── m4_adk_multiagents/main_adk_multiagent.py                        # Entry point — Module 4 (Gemini + ADK)
+├── m3_langgraph_multiagents/main_langgraph_multiagent.py             # Entry point — Module 3 (OpenAI + LangGraph)
+├── m4_adk_multiagents/a2a_protocol_seller_server.py                  # Entry point — Module 4 (A2A server)
+├── m4_adk_multiagents/a2a_protocol_buyer_client_demo.py              # Entry point — Module 4 (A2A client)
 ├── INSTRUCTOR_GUIDE.md                # 4-hour workshop script for instructors
 ├── .env.example                       # Copy to .env and add your API keys
 └── requirements.txt
 ```
 
-If module files feel overwhelming, start with:
-- `m3_langgraph_multiagents/README.md` for Module 3 file roles and flow
-- `m4_adk_multiagents/README.md` for Module 4 (ADK) file roles and flow
+If module files feel overwhelming, start with the README inside each module folder.
 
-### Why 4 modules but 6 notes?
+### Notes live inside each module
 
-The notes are reference guides, not a strict 1:1 module count.
+Each module has a `notes/` subfolder with reference documentation for that module's concepts.
 
-| Module | Folder | Primary Notes | Why |
-|---|---|---|---|
-| M1 | `m1_baseline/` | `notes/01_agents_fundamentals.md` | Foundation concepts used by all later modules |
-| M2 | `m2_mcp/` | `notes/02_mcp_deep_dive.md` | MCP protocol and tool integration |
-| M3 | `m3_langgraph_multiagents/` | `notes/04_langgraph_explained.md` | Pure LangGraph orchestration with shared TypedDict state |
-| M4 | `m4_adk_multiagents/` | `notes/03_a2a_protocols.md` + `notes/05_google_adk_overview.md` | True A2A protocol transport + ADK runtime |
+| Module | Notes |
+|---|---|
+| `m1_baseline/notes/` | `agents_fundamentals.md` — agent fundamentals and failure modes |
+| `m2_mcp/notes/` | `mcp_deep_dive.md` — MCP protocol and tool integration |
+| `m3_langgraph_multiagents/notes/` | `langgraph_explained.md` — LangGraph orchestration deep dive |
+| `m4_adk_multiagents/notes/` | `a2a_protocols.md` — A2A protocol deep dive |
+| | `google_adk_overview.md` — Google ADK overview |
+| | `langgraph_adk_a2a_comparison.md` — cross-module comparison (M3 vs M4) |
 
-So the extra note exists because Module 4 now spans both A2A protocol and ADK runtime topics.
-
-`notes/06_langgraph_adk_a2a_comparison.md` is a cross-cutting synthesis note comparing orchestration models and how A2A complements both.
+Module 4 has three notes because it spans two distinct topics: the A2A protocol standard and the Google ADK runtime.
 
 ---
 
@@ -199,12 +205,13 @@ python m2_mcp/pricing_server.py --sse --port 8001  # SSE transport mode
 # MODULE 3: Full simple version (needs OPENAI_API_KEY)
 python m3_langgraph_multiagents/main_langgraph_multiagent.py
 
-# MODULE 4: ADK version (needs GOOGLE_API_KEY, free)
-python m4_adk_multiagents/main_adk_multiagent.py
-python m4_adk_multiagents/adk_orchestrator_agents_demo.py --check
-python m4_adk_multiagents/adk_orchestrator_agents_demo.py --run --max-iterations 3
+# MODULE 4: True A2A protocol demo (needs GOOGLE_API_KEY, free)
 python m4_adk_multiagents/a2a_protocol_seller_server.py --port 9102
 python m4_adk_multiagents/a2a_protocol_buyer_client_demo.py --seller-url http://127.0.0.1:9102
+# Bonus (in-process, no network):
+python m4_adk_multiagents/bonus/main_adk_multiagent.py
+python m4_adk_multiagents/bonus/adk_orchestrator_agents_demo.py --check
+python m4_adk_multiagents/bonus/adk_orchestrator_agents_demo.py --run --max-iterations 3
 ```
 
 ### 7. Exercise 7 SSE Prerequisite
@@ -254,7 +261,7 @@ python m3_langgraph_multiagents/main_langgraph_multiagent.py
 ### ADK Version Flow
 
 ```
-python m4_adk_multiagents/main_adk_multiagent.py
+python m4_adk_multiagents/bonus/main_adk_multiagent.py
     │
     └── run_adk_negotiation() [manual coordination loop]
           │
@@ -308,12 +315,12 @@ See `INSTRUCTOR_GUIDE.md` for the full 4-hour script, talking points, and debrie
 | Time | Module | Topic | Key Files |
 |---|---|---|---|
 | 0:00–0:15 | Intro | What we're building | `README.md` |
-| 0:15–1:05 | M1 | Why naive agents break + FSM fix | `m1_baseline/` |
-| 1:05–1:30 | M2 | MCP with GitHub | `m2_mcp/github_demo_client.py` |
-| 1:30–2:15 | M2 | Custom MCP servers | `m2_mcp/pricing_server.py` |
-| 2:15–3:15 | M3 | Pure LangGraph multi-agent flow + full simple run | `m3_langgraph_multiagents/`, `m3_langgraph_multiagents/main_langgraph_multiagent.py` |
-| 3:15–3:40 | M4 | Google ADK + true A2A protocol demos | `m4_adk_multiagents/`, `m4_adk_multiagents/main_adk_multiagent.py` |
-| 3:40–4:00 | Wrap | Exercises + Q&A | `exercises/exercises.md` |
+| 0:15–0:45 | M1 | Why naive agents break + FSM fix | `m1_baseline/` |
+| 0:45–1:30 | M2 | MCP with GitHub | `m2_mcp/github_demo_client.py` |
+| 1:30–2:05 | M2 | Custom MCP servers (break at 1:30) | `m2_mcp/pricing_server.py` |
+| 2:05–2:50 | M3 | Pure LangGraph multi-agent flow + full simple run | `m3_langgraph_multiagents/`, `m3_langgraph_multiagents/main_langgraph_multiagent.py` |
+| 2:50–3:50 | M4 | True A2A protocol demos (Google ADK backing) | `m4_adk_multiagents/a2a_protocol_seller_server.py`, `m4_adk_multiagents/a2a_protocol_buyer_client_demo.py` |
+| 3:50–4:00 | Wrap | Exercises + Q&A | `exercises/code_solutions/README.md` |
 
 ---
 

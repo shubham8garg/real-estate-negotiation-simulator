@@ -1,4 +1,4 @@
-# 06 — LangGraph vs Google ADK vs A2A
+# LangGraph vs Google ADK vs A2A
 ## Orchestration Models, Tradeoffs, and Interoperability
 
 ---
@@ -116,7 +116,7 @@ You can have:
 - `m4_adk_multiagents/buyer_adk.py`
 - `m4_adk_multiagents/seller_adk.py`
   - `LlmAgent` + `MCPToolset` + `Runner`
-- `m4_adk_multiagents/adk_orchestrator_agents_demo.py`
+- `m4_adk_multiagents/bonus/adk_orchestrator_agents_demo.py`
   - Buyer/seller orchestration using `LoopAgent`
 
 ### A2A side

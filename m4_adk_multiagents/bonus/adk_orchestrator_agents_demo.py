@@ -10,10 +10,10 @@ This keeps the demo aligned with negotiation semantics:
 
 Usage:
     # No API calls. Verifies LoopAgent + buyer/seller object construction only.
-  python m4_adk_multiagents/adk_orchestrator_agents_demo.py --check
+  python m4_adk_multiagents/bonus/adk_orchestrator_agents_demo.py --check
 
     # Optional live run (requires GOOGLE_API_KEY)
-    python m4_adk_multiagents/adk_orchestrator_agents_demo.py --run --max-iterations 3
+    python m4_adk_multiagents/bonus/adk_orchestrator_agents_demo.py --run --max-iterations 3
 """
 
 import argparse
@@ -29,7 +29,7 @@ from google.adk.sessions import InMemorySessionService
 from google.genai.types import Content, Part
 
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 

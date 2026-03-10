@@ -42,7 +42,7 @@ SETUP:
        export GOOGLE_API_KEY=AIza...
 
   4. Run:
-      python m4_adk_multiagents/main_adk_multiagent.py
+      python m4_adk_multiagents/bonus/main_adk_multiagent.py
 """
 
 import argparse
@@ -52,7 +52,7 @@ import sys
 import uuid
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 

@@ -436,7 +436,7 @@ Each problem maps to a specific solution in the workshop:
 
 RUN THE FIXED VERSION:
     python m3_langgraph_multiagents/main_langgraph_multiagent.py   # OpenAI GPT-4o + MCP + typed messages + LangGraph
-  python m4_adk_multiagents/main_adk_multiagent.py      # Gemini 2.0 Flash + ADK + MCPToolset
+  python m4_adk_multiagents/a2a_protocol_seller_server.py --port 9102  # Gemini + ADK + true A2A protocol
     """)
 
 

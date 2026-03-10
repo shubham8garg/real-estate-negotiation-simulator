@@ -1,7 +1,7 @@
-# 04 — LangGraph Explained
+# LangGraph Explained
 ## Orchestrating Multi-Agent Workflows with State Machines
 
-See also: [06 — LangGraph vs Google ADK vs A2A](06_langgraph_adk_a2a_comparison.md) for a cross-framework comparison index.
+See also: [LangGraph vs Google ADK vs A2A](../../m4_adk_multiagents/notes/langgraph_adk_a2a_comparison.md) for a cross-framework comparison index.
 
 ---
 
@@ -942,5 +942,5 @@ See `m3_langgraph_multiagents/langgraph_flow.py` for the complete implementation
 
 ---
 
-*← [03 — A2A Protocols](03_a2a_protocols.md)*
-*→ [05 — Google ADK Overview](05_google_adk_overview.md)*
+*← [A2A Protocols](../../m4_adk_multiagents/notes/a2a_protocols.md)*
+*→ [Google ADK Overview](../../m4_adk_multiagents/notes/google_adk_overview.md)*

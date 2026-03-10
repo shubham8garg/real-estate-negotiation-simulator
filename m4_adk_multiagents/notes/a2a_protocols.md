@@ -1,4 +1,4 @@
-# 03 — A2A Protocols
+# A2A Protocols
 ## Agent-to-Agent Communication: How Agents Talk to Each Other
 
 ---
@@ -945,5 +945,5 @@ delegation_message = A2AMessage(
 
 ---
 
-*← [02 — MCP Deep Dive](02_mcp_deep_dive.md)*
-*→ [04 — LangGraph Explained](04_langgraph_explained.md)*
+*← [MCP Deep Dive](../../m2_mcp/notes/mcp_deep_dive.md)*
+*→ [LangGraph Explained](../../m3_langgraph_multiagents/notes/langgraph_explained.md)*

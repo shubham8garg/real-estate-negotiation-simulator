@@ -22,7 +22,7 @@ python m1_baseline/state_machine.py        # Should print FSM demo, no API key
 python m1_baseline/naive_negotiation.py    # Should fail loudly (that's the point)
 pytest tests/ -v                           # All tests should pass, no API keys needed
 python m3_langgraph_multiagents/main_langgraph_multiagent.py --rounds 2           # Quick smoke test with OpenAI
-python m4_adk_multiagents/main_adk_multiagent.py --rounds 1             # Quick smoke test with Gemini
+python m4_adk_multiagents/bonus/main_adk_multiagent.py --rounds 1       # Quick smoke test with Gemini
 ```
 
 ### What to have on screen when participants arrive
@@ -37,27 +37,27 @@ python m4_adk_multiagents/main_adk_multiagent.py --rounds 1             # Quick 
 | Time        | Module | Topic                                        | Key Command / File                              |
 |-------------|--------|----------------------------------------------|-------------------------------------------------|
 | 0:00–0:15   | Intro  | What we're building + architecture overview  | Show README diagram                             |
-| 0:15–0:40   | M1     | Why naive AI agents break (demo)             | `python m1_baseline/naive_negotiation.py`       |
-| 0:40–1:05   | M1     | FSM: the termination fix                     | `python m1_baseline/state_machine.py`           |
-| 1:05–1:50   | M2     | MCP deep dive: protocol + GitHub live demo   | `python m2_mcp/github_demo_client.py`           |
-| 1:50–2:05   | Break  | —                                            | —                                               |
-| 2:05–2:25   | M2     | Custom MCP servers + information asymmetry   | Walk `m2_mcp/pricing_server.py`                 |
-| 2:25–3:10   | M3     | LangGraph deep dive + full run               | `m3_langgraph_multiagents/langgraph_flow.py`, `m3_langgraph_multiagents/main_langgraph_multiagent.py` |
-| 3:10–3:50   | M4     | Google ADK deep dive + full run              | `m4_adk_multiagents/buyer_adk.py`, `m4_adk_multiagents/main_adk_multiagent.py`           |
-| 3:50–4:00   | Wrap   | Exercises + Q&A                              | `exercises/exercises.md`                        |
+| 0:15–0:30   | M1     | Why naive AI agents break (demo)             | `python m1_baseline/naive_negotiation.py`       |
+| 0:30–0:45   | M1     | FSM: the termination fix                     | `python m1_baseline/state_machine.py`           |
+| 0:45–1:30   | M2     | MCP deep dive: protocol + GitHub live demo   | `python m2_mcp/github_demo_client.py`           |
+| 1:30–1:45   | Break  | —                                            | —                                               |
+| 1:45–2:05   | M2     | Custom MCP servers + information asymmetry   | Walk `m2_mcp/pricing_server.py`                 |
+| 2:05–2:50   | M3     | LangGraph deep dive + full run               | `m3_langgraph_multiagents/langgraph_flow.py`, `m3_langgraph_multiagents/main_langgraph_multiagent.py` |
+| 2:50–3:50   | M4     | A2A protocol: networked agents               | `m4_adk_multiagents/a2a_protocol_seller_server.py`, `m4_adk_multiagents/a2a_protocol_buyer_client_demo.py` |
+| 3:50–4:00   | Wrap   | Exercises + Q&A                              | `exercises/code_solutions/README.md`            |
 
-### Note Mapping (Why 4 modules but 6 notes)
+### Note Mapping
 
-The notes are reference guides, so they are not a strict 1:1 count with modules.
+Notes live inside each module's `notes/` subfolder.
 
-| Module | Folder | Primary Notes | Why |
-|---|---|---|---|
-| M1 | `m1_baseline/` | `notes/01_agents_fundamentals.md` | Foundation concepts used by all later modules |
-| M2 | `m2_mcp/` | `notes/02_mcp_deep_dive.md` | MCP protocol and tool integration |
-| M3 | `m3_langgraph_multiagents/` | `notes/04_langgraph_explained.md` | Module 3 is pure LangGraph orchestration with shared typed state |
-| M4 | `m4_adk_multiagents/` | `notes/03_a2a_protocols.md` + `notes/05_google_adk_overview.md` | A2A protocol transport + ADK runtime patterns |
-
-`notes/06_langgraph_adk_a2a_comparison.md` is a cross-cutting synthesis note comparing orchestration models and interoperability.
+| Module | Notes location |
+|---|---|
+| M1 | `m1_baseline/notes/agents_fundamentals.md` |
+| M2 | `m2_mcp/notes/mcp_deep_dive.md` |
+| M3 | `m3_langgraph_multiagents/notes/langgraph_explained.md` |
+| M4 | `m4_adk_multiagents/notes/a2a_protocols.md` |
+| M4 | `m4_adk_multiagents/notes/google_adk_overview.md` |
+| M4 (cross-module) | `m4_adk_multiagents/notes/langgraph_adk_a2a_comparison.md` |
 
 ---
 
@@ -88,7 +88,7 @@ The notes are reference guides, so they are not a strict 1:1 count with modules.
 
 ---
 
-### MODULE 1 — Part 1 (0:15–0:40): "Why Naive AI Agents Break"
+### MODULE 1 — Part 1 (0:15–0:30): "Why Naive AI Agents Break"
 
 ```bash
 python m1_baseline/naive_negotiation.py
@@ -120,7 +120,7 @@ while True:                              # no guarantee
 
 ---
 
-### MODULE 1 — Part 2 (0:40–1:05): "The FSM Fix"
+### MODULE 1 — Part 2 (0:30–0:45): "The FSM Fix"
 
 ```bash
 python m1_baseline/state_machine.py
@@ -160,7 +160,7 @@ pytest tests/test_fsm.py -v
 
 ---
 
-### MODULE 2 — Part 1 (1:05–1:50): "MCP Deep Dive + GitHub Live Demo"
+### MODULE 2 — Part 1 (0:45–1:30): "MCP Deep Dive + GitHub Live Demo"
 
 This is the longest single block. Spend real time here — MCP is foundational.
 
@@ -336,13 +336,13 @@ Buyer agent flow:
 > notifications back. REST is request-response only. MCP needs the server to
 > potentially push tool-call results async.
 
-**Run the A2A tests to show validation:**
+**Run the FSM tests to reinforce termination concepts:**
 ```bash
-pytest tests/test_a2a.py -v
+pytest tests/test_fsm.py -v
 ```
 
-> "This test validates our typed negotiation message contracts in Module 3.
-> Protocol-level A2A transport is demonstrated in Module 4 using the A2A SDK."
+> "These tests validate the FSM termination guarantee from Module 1 — same guarantee
+> that LangGraph's END node provides at workflow level."
 
 ---
 
@@ -352,7 +352,7 @@ Leave `m2_mcp/pricing_server.py` open. Terminal ready.
 
 ---
 
-### MODULE 2 — Part 2 (2:05–2:25): "Custom MCP Servers"
+### MODULE 2 — Part 2 (1:45–2:05): "Custom MCP Servers"
 
 **SAY:**
 > "The GitHub demo showed us what a published MCP server looks like.
@@ -362,8 +362,8 @@ Leave `m2_mcp/pricing_server.py` open. Terminal ready.
 
 ```python
 @mcp.tool()
-async def get_market_price(address: str, property_type: str) -> str:
-    """Get current market price and comparable sales for a property."""
+def get_market_price(address: str, property_type: str = "single_family") -> dict:
+    """Get comprehensive market pricing data for a property."""
     ...
 ```
 
@@ -404,11 +404,11 @@ async def get_minimum_acceptable_price(property_id: str) -> str:
 
 ---
 
-### MODULE 3 (2:25–3:10): "LangGraph Deep Dive + Full Simple Version"
+### MODULE 3 (2:05–2:50): "LangGraph Deep Dive + Full Simple Version"
 
 This is the most complex module. Take it in three parts.
 
-#### Part A: Why orchestration? (2:25–2:35) — 10 min
+#### Part A: Why orchestration? (2:05–2:15) — 10 min
 
 **SAY:**
 > "Before LangGraph, multi-agent coordination looked like this:"
@@ -450,7 +450,7 @@ Raw Python:             LangGraph:
 > The graph is the control flow. Nodes are the work. Edges are the routing.
 > And END is a terminal node — same as the FSM's AGREED/FAILED states."
 
-#### Part B: LangGraph code walkthrough (2:35–2:55) — 20 min
+#### Part B: LangGraph code walkthrough (2:15–2:35) — 20 min
 
 Open `m3_langgraph_multiagents/langgraph_flow.py`.
 
@@ -585,7 +585,7 @@ while True:                              # while not fsm.is_terminal():
 > "LangGraph forces you to be explicit about routing. You can't accidentally forget
 > to check a terminal condition. The graph structure IS the termination logic."
 
-#### Part C: Run and observe (2:55–3:10) — 15 min
+#### Part C: Run and observe (2:35–2:50) — 15 min
 
 ```bash
 python m3_langgraph_multiagents/main_langgraph_multiagent.py
@@ -612,264 +612,285 @@ python m3_langgraph_multiagents/main_langgraph_multiagent.py --seller-minimum 47
 
 ---
 
-### MODULE 4 (3:10–3:50): "Google ADK Deep Dive + Full Run"
+### MODULE 4 (2:50–3:50): "True A2A Protocol — Networked Agents"
 
-This module shows how ADK changes the agent model: from explicit tool calls to autonomous tool use.
+This module shows what production multi-agent systems look like: two agents running
+as independent HTTP services, communicating over the A2A protocol standard.
 
-#### Part A: ADK philosophy (3:10–3:20) — 10 min
+**THE BIG PICTURE:**
+> "In Modules 2 and 3, both agents lived in the same Python process.
+> The buyer called the seller like a function.
+> In the real world, agents run on different machines, owned by different teams,
+> possibly written in different languages.
+> The A2A protocol is the standard that makes that possible.
+> This module shows the exact same negotiation — but now the seller is an HTTP server
+> and the buyer calls it over the network."
+
+**DRAW the architecture shift:**
+```
+MODULE 3 (same process):
+  main_langgraph_multiagent.py
+    buyer_node() ----calls----> seller_node()
+    (Python function call — same memory, same machine)
+
+MODULE 4 (networked A2A):
+  Terminal 1: a2a_protocol_seller_server.py   <-- HTTP server, port 9102
+  Terminal 2: a2a_protocol_buyer_client_demo.py
+
+  buyer_adk.py                   a2a_protocol_seller_server.py
+  [Gemini + MCP]                 [A2A endpoint]
+       |                               |
+       | 1. make offer via ADK         | 3. receive A2A message
+       | 2. send via A2AClient ------> | 4. run SellerAgentADK
+       |    HTTP POST /               | 5. return counter-offer
+       | 6. parse response <--------- |
+```
+
+---
+
+#### Part A: The A2A Protocol (2:50–3:05) — 15 min
 
 **SAY:**
-> "In Module 3, GPT-4o first acts as a planner to decide which MCP tools to call,
-> and then uses the returned data for the negotiation response.
->
-> In ADK, that tool-use autonomy is native inside the ADK runner.
-> We say: 'Here are the tools. Figure out when to use them.'
-> This is a fundamentally different agent model."
+> "A2A (Agent-to-Agent) is an open protocol for agents to discover and call each other.
+> It defines three things — the same three things MCP defines, but for agents instead of tools."
 
-**DRAW the difference:**
+**DRAW the parallel:**
 ```
-SIMPLE VERSION (LLM-planned MCP + LangGraph orchestration):
-  Coordinator:   "Round 1, buyer's turn"
-  buyer_node:    1. GPT-4o planner selects MCP tool(s)
-                 2. execute selected MCP call(s)
-                 3. call GPT-4o for negotiation decision
-                 4. return A2AMessage
-
-ADK VERSION (autonomous tool use):
-  Coordinator:   "Round 1, buyer's turn"
-  ADK Runner:    1. send prompt to Gemini
-                 Gemini: "I need market data. I'll call get_market_price()"
-                 ADK:    executes the tool call
-                 Gemini: "Now I'll call calculate_discount()"
-                 ADK:    executes the tool call
-                 Gemini: "Based on this data, my offer is $427,000"
-                 2. return response text
-  buyer_agent:   3. parse text -> A2AMessage
+MCP (agent <-> tool):           A2A (agent <-> agent):
+  1. list_tools()                 1. GET /.well-known/agent-card.json
+     "What can you do?"              "Who are you and what can you do?"
+  2. Tool JSON Schema             2. Agent Card (skills, input/output modes)
+     "How do I call you?"            "Here's my full capability description"
+  3. tools/call                   3. POST / (message/send JSON-RPC)
+     "Do this thing"                 "Handle this task"
 ```
 
-> "Same outcome. Very different control flow.
-> With explicit: you control the tool sequence. Predictable but rigid.
-> With ADK: Gemini decides. Flexible but less predictable.
->
-> Production rule of thumb: use explicit when you need reliability guarantees.
-> Use ADK when the task is complex enough that the LLM should decide the tool sequence."
+> "The Agent Card is the A2A equivalent of MCP's tool schema.
+> It's a JSON document at a well-known URL that describes what the agent does,
+> what inputs it accepts, and what it returns.
+> Any client can discover any A2A agent just by fetching that URL."
 
-#### Part B: ADK components (3:20–3:35) — 15 min
+**Show the Agent Card from `a2a_protocol_seller_server.py`:**
+```python
+AgentCard(
+    name="adk_seller_a2a_server",
+    description="Google ADK-backed seller agent exposed via A2A protocol",
+    url=base_url,
+    skills=[
+        AgentSkill(
+            id="real_estate_seller_negotiation",
+            name="Real Estate Seller Negotiation",
+            description="Responds to buyer offers with ADK-generated counter-offers or acceptance",
+            tags=["real_estate", "negotiation", "seller", "adk", "a2a"],
+            examples=["Buyer offers $438,000 with 45-day close"],
+        )
+    ],
+)
+```
 
-Open `m4_adk_multiagents/buyer_adk.py`.
+> "This Agent Card is served at `GET /agent-card.json`.
+> The buyer client fetches it first, before sending a single message.
+> From the card, the client knows: what this agent does, what format it accepts,
+> and what URL to POST tasks to.
+> No documentation needed. Self-describing, like MCP tools."
 
-**1. LlmAgent — the core agent object (3 min)**
+**The task lifecycle — 2 min:**
+> "A2A introduces the concept of a Task — a unit of work with a lifecycle:
+> submitted -> working -> completed (or failed).
+> The `TaskUpdater` in our server code drives this:
+> `await updater.start_work()` ... `await updater.complete(message)`
+> Long-running agents can stream partial results back through the task lifecycle."
+
+---
+
+#### Part B: ADK as the Agent Backing Layer (3:05–3:15) — 10 min
+
+Open `m4_adk_multiagents/buyer_adk.py` and `m4_adk_multiagents/seller_adk.py`.
+
+**SAY:**
+> "The ADK agents are the LLM + MCP layer — the intelligence behind the A2A endpoints.
+> Understanding three things is enough:"
+
+**1. LlmAgent + MCPToolset — the agent definition**
 
 ```python
+pricing_toolset = MCPToolset(connection_params=StdioConnectionParams(...))
+tools = await pricing_toolset.get_tools()   # discovers get_market_price, calculate_discount
+
 self._agent = LlmAgent(
     name="buyer_agent",
-    model=GEMINI_MODEL,           # "gemini-2.0-flash"
-    description="Real estate buyer agent for 742 Evergreen Terrace",
-    instruction=BUYER_INSTRUCTION, # the system prompt
-    tools=tools,                   # discovered from MCP server
+    model="gemini-2.0-flash",
+    instruction=BUYER_INSTRUCTION,
+    tools=tools,   # Gemini can now call MCP tools autonomously
 )
 ```
 
-> "LlmAgent is NOT a running process — it's a configuration object.
-> Four things define an agent:
-> - model: which LLM
-> - instruction: system prompt / persona
-> - tools: what the agent can call
-> - description: how OTHER agents understand this agent (important for multi-agent)
->
-> The instruction replaces our explicit BUYER_SYSTEM_PROMPT from Module 3.
-> The tools replace our manual call_pricing_mcp() calls."
+> "MCPToolset replaces all the manual `stdio_client` / `call_tool` code from Module 3.
+> Gemini decides when to call which tools — the tool-use loop is inside the ADK runner.
+> The seller uses TWO toolsets merged together: pricing + inventory."
 
-**2. MCPToolset — automatic tool discovery (4 min)**
+**2. Runner executes turns, SessionService holds memory**
+
+> "Runner.run_async() returns an event stream — tool calls, tool results, final response.
+> SessionService gives the agent memory across rounds. That's the full ADK picture."
+
+**3. Context manager = clean MCP subprocess management**
+
+> "Both agents are async context managers. `__aenter__` connects to MCP servers.
+> `__aexit__` closes them. No leaked subprocesses even if the negotiation crashes."
+
+---
+
+#### Part C: The A2A Seller Server (3:15–3:30) — 15 min
+
+Open `m4_adk_multiagents/a2a_protocol_seller_server.py`.
+
+**Walk through the executor — the heart of the server:**
 
 ```python
-pricing_toolset = MCPToolset(
-    connection_params=StdioConnectionParams(
-        server_params=StdioServerParameters(
-            command=sys.executable,
-            args=[_PRICING_SERVER],     # absolute path to pricing_server.py
+class SellerADKA2AExecutor(AgentExecutor):
+    async def execute(self, context: RequestContext, event_queue: EventQueue) -> None:
+        updater = TaskUpdater(event_queue, task_id=context.task_id, ...)
+        await updater.start_work()                       # task is now "working"
+
+        incoming_text = context.get_user_input().strip() # the buyer's message
+        buyer_price = _extract_price(incoming_text)      # parse the offer
+
+        buyer_message = create_offer(...)                # wrap as ADK A2A type
+
+        async with SellerAgentADK(...) as seller:
+            seller_reply = await seller.respond_to_offer(buyer_message)  # run ADK agent
+
+        response_payload = {                             # serialize response
+            "message_type": seller_reply.message_type,
+            "price": seller_reply.payload.price,
+            "message": seller_reply.payload.message,
+        }
+
+        agent_message = updater.new_agent_message(parts=[TextPart(text=json.dumps(response_payload))])
+        await updater.complete(agent_message)            # task is now "completed"
+```
+
+> "The executor is the adapter between the A2A protocol and the ADK agent.
+> It receives an A2A task, runs the seller ADK agent, and returns the result.
+> The ADK agent does all the Gemini + MCP reasoning — the executor just wires it up."
+
+**Show how the server is assembled:**
+
+```python
+handler = DefaultRequestHandler(
+    agent_executor=SellerADKA2AExecutor(),
+    task_store=InMemoryTaskStore(),
+    queue_manager=InMemoryQueueManager(),
+)
+app_builder = A2ARESTFastAPIApplication(agent_card=card, http_handler=handler)
+app = app_builder.build(agent_card_url="/.well-known/agent-card.json", rpc_url="/")
+uvicorn.run(app, host=args.host, port=args.port)
+```
+
+> "A2ARESTFastAPIApplication wires the handler into a FastAPI app with two routes:
+> GET `/.well-known/agent-card.json` — returns the Agent Card
+> POST `/` — handles `message/send` JSON-RPC calls
+> That's the entire A2A server. Any A2A-compatible client can now talk to it."
+
+---
+
+#### Part D: The A2A Buyer Client (3:30–3:40) — 10 min
+
+Open `m4_adk_multiagents/a2a_protocol_buyer_client_demo.py`.
+
+**Walk through the three-step client flow:**
+
+```python
+# Step 1: Buyer ADK agent makes an offer (Gemini + MCP — same as before)
+async with BuyerAgentADK(session_id=...) as buyer:
+    offer = await buyer.make_initial_offer()
+
+offer_text = f"Buyer offer: ${offer.payload.price:,.0f}. Message={offer.payload.message}"
+
+async with httpx.AsyncClient() as http_client:
+    # Step 2: Discover the seller — fetch Agent Card from well-known URL
+    resolver = A2ACardResolver(httpx_client=http_client, base_url=args.seller_url)
+    card = await resolver.get_agent_card()     # GET /.well-known/agent-card.json
+    client = A2AClient(httpx_client=http_client, agent_card=card)
+
+    # Step 3: Send the offer over A2A JSON-RPC
+    request = SendMessageRequest(
+        params=MessageSendParams(
+            message=Message(parts=[TextPart(text=offer_text)])
         )
     )
-)
-tools = await pricing_toolset.get_tools()
+    response = await client.send_message(request)   # POST / (message/send)
 ```
 
-> "MCPToolset does what our buyer_simple.py does manually — but automatically.
-> It spawns the MCP server, runs the handshake, calls list_tools(),
-> converts the tool schemas into Gemini function-calling format,
-> and returns them as a list Gemini can use.
+> "Three lines of actual business logic — the rest is standard protocol plumbing.
+> Step 1: buyer ADK makes the offer exactly as before.
+> Step 2: discover the seller's capabilities from its well-known URL — no hardcoding.
+> Step 3: send the offer as an A2A message. The seller could be on any machine."
+
+**ASK:**
+> "In Module 3, the buyer and seller shared a LangGraph state dict.
+> In Module 4, what does the buyer know about the seller's internal state?"
 >
-> The agent then gives Gemini these tools. When Gemini decides to call one,
-> ADK executes the call_tool() request and feeds the result back to Gemini.
-> You never write a single line of MCP client code in the agent itself."
+> Answer: Nothing. The buyer only knows what's in the Agent Card and the response message.
+> The seller's floor price, MCP calls, Gemini reasoning — all hidden behind the A2A interface.
+> This is true information encapsulation. Even stronger than the MCP access control from Module 2.
 
-**Show the tool names discovered:**
-```python
-tool_names = [t.name for t in tools if hasattr(t, 'name')]
-print(f"   [Buyer ADK] Discovered MCP tools: {tool_names}")
-# Output: ['get_market_price', 'calculate_discount']
-```
+---
 
-> "These are the same tools our simple buyer calls explicitly.
-> Now Gemini decides when to call them."
+#### Part E: Run the Full A2A Demo (3:40–3:50) — 10 min
 
-**3. Runner + SessionService (4 min)**
-
-```python
-self._session_service = InMemorySessionService()
-self._runner = Runner(
-    agent=self._agent,
-    app_name=APP_NAME,
-    session_service=self._session_service,
-)
-await self._session_service.create_session(...)
-```
-
-> "SessionService is ADK's memory. It stores the conversation history for this agent.
-> Between rounds, the buyer remembers what it offered last time and what the seller countered.
-> Without it: every round would be stateless — the buyer could offer less than before.
->
-> InMemorySessionService = in-process memory. In production you'd use:
-> DatabaseSessionService (persists to Postgres/etc.) for resumable agents."
-
-> "Runner executes the agent. It takes the agent config + session service + app name
-> and creates an execution engine. runner.run_async() returns an async generator of events:
-> tool calls, tool results, partial responses, final response."
-
-**SHOW the event loop:**
-```python
-async for event in self._runner.run_async(
-    user_id=self.user_id,
-    session_id=self.session_id,
-    new_message=content,
-):
-    if hasattr(event, 'tool_calls') and event.tool_calls:
-        # Gemini decided to call a tool — ADK is executing it
-        for tc in event.tool_calls:
-            print(f"   [Buyer ADK] Calling tool: {tc.function.name}(...)")
-
-    if event.is_final_response() and event.content:
-        # Gemini is done — this is the final answer
-        final_response += part.text
-```
-
-> "Events arrive as Gemini reasons. You might see:
-> tool_call event: get_market_price()  <- Gemini decided to call this
-> tool_result event: {estimated_value: 462000, ...}
-> tool_call event: calculate_discount()  <- Gemini calls a second tool
-> tool_result event: {suggested_offer: 425000, ...}
-> final_response event: JSON with the offer
->
-> The agent loop is inside ADK. We just consume the events."
-
-**4. Dual MCPToolsets in seller — 4 min**
-
-Open `m4_adk_multiagents/seller_adk.py`:
-
-```python
-# Pricing tools (shared with buyer)
-pricing_tools = await pricing_toolset.get_tools()
-
-# Inventory tools (seller ONLY - has get_minimum_acceptable_price)
-inventory_tools = await inventory_toolset.get_tools()
-
-# Merge: Gemini sees all four tools as one unified list
-all_tools = list(pricing_tools) + list(inventory_tools)
-```
-
-> "The seller connects to BOTH MCP servers and merges the tool lists.
-> Gemini sees all four tools — get_market_price, calculate_discount,
-> get_inventory_level, AND get_minimum_acceptable_price.
->
-> The buyer has no access to the last one. Same information asymmetry
-> as Module 2 — controlled by which MCPToolset the agent connects to."
-
-**5. Context manager lifecycle — 2 min**
-
-```python
-async with BuyerAgentADK(session_id=f"{session_id}_buyer") as buyer:
-    async with SellerAgentADK(session_id=f"{session_id}_seller") as seller:
-        # negotiation runs here
-    # seller.__aexit__: MCP connections closed
-# buyer.__aexit__: MCP connections closed
-```
-
-> "Both agents are async context managers. __aenter__ spawns the MCP servers.
-> __aexit__ closes the connections — even if an exception occurred mid-negotiation.
-> This is production-quality resource management.
-> Without it: MCP subprocess orphans, file descriptor leaks."
-
-#### Part C: Run and compare (3:35–3:50) — 15 min
-
+**Prerequisites:**
 ```bash
-python m4_adk_multiagents/main_adk_multiagent.py
+pip install a2a-sdk uvicorn httpx   # if not already in requirements.txt
+export GOOGLE_API_KEY=AIza...
+```
+
+**Terminal 1 — start the seller A2A server:**
+```bash
+python m4_adk_multiagents/a2a_protocol_seller_server.py --port 9102
+# Output: A2A seller server listening at http://127.0.0.1:9102
+#         Agent card: http://127.0.0.1:9102/.well-known/agent-card.json
+```
+
+**Terminal 2 — run the buyer client:**
+```bash
+python m4_adk_multiagents/a2a_protocol_buyer_client_demo.py --seller-url http://127.0.0.1:9102
 ```
 
 **Watch specifically for:**
-- `[Buyer ADK] Discovered MCP tools: [...]` — tool discovery happening
-- `[Buyer ADK] Calling tool: get_market_price(...)` — Gemini autonomously deciding to call
-- Compare: in the simple version, you saw `[Buyer] LLM planned MCP calls: ...`
-  then selected MCP calls were executed. In ADK, Gemini makes tool calls inside the runner loop.
+- Buyer makes its offer via ADK (you see the Gemini + MCP tool calls in terminal 2)
+- Client fetches the Agent Card from the seller server (in terminal 1 logs)
+- `message/send` JSON-RPC request fires — visible in both terminals
+- Seller runs its ADK agent (Gemini + 3 MCP tool calls visible in terminal 1)
+- Response arrives back in terminal 2 as structured JSON
 
-**AFTER IT RUNS — compare with Module 3:**
+**AFTER IT RUNS — the key insight:**
+> "The buyer had no import of seller_adk.py. No shared state object. No shared process.
+> It sent an HTTP request to a URL. The seller could be deployed on AWS, written in Java,
+> maintained by a completely different team — as long as it speaks A2A, the buyer works.
+> That's the point of a protocol standard."
 
-| Observation | Simple Version | ADK Version |
+---
+
+#### Bonus Demos (mention if time allows)
+
+| File | What it adds | How to run |
 |---|---|---|
-| Who chooses MCP tools? | GPT-4o planner in buyer/seller nodes (strict selected-only execution) | Gemini decides mid-generation |
-| Where is the loop? | LangGraph StateGraph | Manual loop in m4_adk_multiagents/main_adk_multiagent.py |
-| Conversation memory | LLM messages list in BuyerAgent | ADK InMemorySessionService |
-| Response format | response_format=json_object (strict) | Instruction prompt (best-effort) |
-| Fallback on bad JSON | structured output guaranteed | _extract_json() 4-strategy parser |
+| `bonus/main_adk_multiagent.py` | Same ADK agents coordinated in-process (no network) — good for local dev/testing | `python m4_adk_multiagents/bonus/main_adk_multiagent.py` |
+| `bonus/adk_orchestrator_agents_demo.py` | ADK's `LoopAgent` — native loop orchestration without manual `for` loop | `python m4_adk_multiagents/bonus/adk_orchestrator_agents_demo.py --check` (no API key) |
 
-**ASK the group — decision framework:**
-> "You're building a legal document review agent. It needs to:
-> - Check clause #7 for compliance
-> - If non-compliant, check related clause #12
-> - Based on #12, decide whether to flag or auto-approve
->
-> Which would you use: explicit tool calls (simple version approach)
-> or autonomous tool use (ADK approach)?"
->
-> Answer: For high-stakes sequential logic — explicit. You need to audit
-> exactly what data informed the decision.
-> For exploratory tasks where the LLM should decide the investigation path — ADK.
-
-**ASK:**
-> "In our ADK version, what happens if Gemini doesn't call get_minimum_acceptable_price?
-> The seller might counter below the floor. How does the code handle this?"
->
-> Answer: parse_seller_response() in messaging_adk.py enforces the floor price.
-> If the parsed counter_price < minimum_price, it corrects it.
-> "Defense in depth: instruction tells Gemini to call the tool.
-> Code enforces the constraint regardless. Never trust LLM output alone for hard limits."
-
-**TRY the deadlock case on ADK:**
-```bash
-python m4_adk_multiagents/main_adk_multiagent.py --seller-minimum 470000 --buyer-budget 460000
-```
-> "Same clean termination as the LangGraph version — but implemented differently.
-> NegotiationSession.is_concluded() instead of LangGraph conditional edges."
-
-**ADK vs LangGraph — when to use which:**
-```
-Use LangGraph when:                       Use ADK when:
-- Workflow has complex conditional        - Agent needs to decide its own
-  routing you want to make explicit         tool-call sequence
-- Multiple agents share state             - You want Gemini to handle
-  that needs careful merging                multi-step reasoning autonomously
-- You want graph-level termination        - Simpler orchestration, focus on
-  guarantees (END node)                     agent behavior not workflow design
-- Human-in-the-loop interrupts            - Free tier (Gemini vs GPT-4o)
-  are needed
-```
+> `bonus/main_adk_multiagent.py` is architecturally equivalent to Module 3 — same agents,
+> just powered by Gemini + ADK instead of GPT-4o + LangGraph.
+> Good to run if participants want to compare LLM outputs directly.
 
 ---
 
 ### WRAP-UP (3:50–4:00): Exercises + Q&A
 
 ```bash
-start exercises/exercises.md    # Windows
-open exercises/exercises.md     # Mac
+start exercises/code_solutions/README.md    # Windows
+open exercises/code_solutions/README.md     # Mac
 ```
 
 **RECOMMENDED EXERCISES by difficulty:**
@@ -967,7 +988,8 @@ pytest tests/ -v
 | Concept | One-line Definition | Where in Code |
 |---------|-------------------|---------------|
 | MCP | Standard protocol for agent ↔ external tool (3 operations: list, schema, call) | `m2_mcp/` |
-| A2A | Networked agent ↔ agent protocol transport (Agent Card + JSON-RPC) | `m4_adk_multiagents/a2a_protocol_seller_server.py` |
+| A2A (workshop) | Typed agent-to-agent message schema (structured offers, counters, acceptances) | `m3_langgraph_multiagents/negotiation_types.py`, `m4_adk_multiagents/adk_a2a_types.py` |
+| A2A (bonus demo) | True networked A2A protocol server (Agent Card + JSON-RPC via a2a-sdk) | `m4_adk_multiagents/a2a_protocol_seller_server.py` + `a2a_protocol_buyer_client_demo.py` |
 | FSM | Termination guaranteed by empty transition sets on terminal states | `m1_baseline/state_machine.py` |
 | LangGraph StateGraph | Declarative workflow graph with shared state and conditional routing | `m3_langgraph_multiagents/langgraph_flow.py` |
 | Annotated reducer | Append-not-overwrite pattern for lists in LangGraph state | `langgraph_flow.py` line ~110 |
@@ -1005,10 +1027,22 @@ External Data           └──────────┘         │ seller_
                         └──────────┘
                          Seller Agent
 
-MODULE 4: SAME AGENTS, ADK INSTEAD OF EXPLICIT TOOL CALLS
-─────────────────────────────────────────────────────────
-MCPToolset auto-discovers tools -> Gemini decides when to call them
-Manual coordination loop in m4_adk_multiagents/main_adk_multiagent.py instead of LangGraph StateGraph
+MODULE 4: TRUE A2A PROTOCOL — NETWORKED AGENTS
+──────────────────────────────────────────────
+Terminal 1: a2a_protocol_seller_server.py   (HTTP server, port 9102)
+  [Agent Card at /.well-known/agent-card.json]
+  [SellerAgentADK: Gemini + MCPToolset (pricing + inventory)]
+
+Terminal 2: a2a_protocol_buyer_client_demo.py
+  [BuyerAgentADK: Gemini + MCPToolset (pricing only)]
+       |
+       | 1. make offer via ADK (Gemini + MCP)
+       | 2. A2ACardResolver.get_agent_card()  -> GET /.well-known/agent-card.json
+       | 3. A2AClient.send_message()          -> POST / (message/send JSON-RPC)
+       | 4. receive counter-offer in response <-
+
+BONUS (in-process, no network):
+  bonus/main_adk_multiagent.py — same ADK agents, manual loop, no A2A protocol
 
 MODULE 1: BASELINE (shows what breaks WITHOUT modules 2-4)
 ```
@@ -1019,7 +1053,7 @@ MODULE 1: BASELINE (shows what breaks WITHOUT modules 2-4)
 
 - **If running long on M2 (GitHub demo):** Skip the wire protocol section (Section 3 above). Jump straight from conceptual framing to the live demo.
 - **If running long on M3 (LangGraph):** Skip Part A (philosophy). Go straight to code walkthrough. The code speaks for itself.
-- **If running long on M4 (ADK):** Skip Part B items 3-4 (Runner/SessionService and dual MCPToolsets). Focus on the explicit vs autonomous tool call comparison — that's the key insight.
+- **If running long on M4 (A2A):** Skip Part B (ADK backing layer detail) entirely — just say "ADK agents = Gemini + MCPToolset" and move straight to the server and client walkthroughs. The A2A protocol itself is the key insight, not ADK internals.
 - **2-hour condensed version:** M1 Part 1 (15 min) + M2 GitHub demo (25 min) + M3 run only (30 min) + M4 compare (25 min) + Q&A (25 min). Skip M1 Part 2, M2 custom servers, and all deep dives.
 - Negotiation outcomes are non-deterministic — run twice if the first run is uninteresting.
 - GPT-4o is ~10x more expensive per token than Gemini free tier. Steer budget-conscious participants to the ADK version for experimentation.
