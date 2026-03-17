@@ -44,6 +44,32 @@ python m2_mcp/github_demo_client.py
 
 ---
 
+### `sse_demo_client.py` — SSE client demo (connects over HTTP)
+
+This script connects to the pricing and/or inventory servers running in **SSE mode** (HTTP) and calls their tools — the same protocol as `github_demo_client.py`, just a different transport.
+
+**What it demonstrates:**
+- Connecting to MCP servers via SSE (Server-Sent Events) transport
+- Tool discovery and calling over HTTP
+- Connecting to multiple servers from a single client
+
+**Prerequisites:**
+- Start the servers in SSE mode first (in separate terminals)
+
+```bash
+# Terminal 1:
+python m2_mcp/pricing_server.py --sse --port 8001
+
+# Terminal 2:
+python m2_mcp/inventory_server.py --sse --port 8002
+
+# Terminal 3 — run the client:
+python m2_mcp/sse_demo_client.py                    # pricing server only
+python m2_mcp/sse_demo_client.py --both              # both servers
+```
+
+---
+
 ### `pricing_server.py` — Custom MCP server for market pricing
 
 This is the first custom MCP server. It wraps simulated real estate pricing data and exposes it as MCP tools.
@@ -138,6 +164,10 @@ python m2_mcp/inventory_server.py
 # SSE mode — run in one terminal, connect from another
 python m2_mcp/pricing_server.py --sse --port 8001
 python m2_mcp/inventory_server.py --sse --port 8002
+
+# Then connect with the SSE demo client (in another terminal)
+python m2_mcp/sse_demo_client.py                    # pricing server only
+python m2_mcp/sse_demo_client.py --both              # both servers
 ```
 
 **What to expect from the GitHub demo:**

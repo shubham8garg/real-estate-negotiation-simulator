@@ -49,6 +49,7 @@ real-estate-negotiation-simulator/
 ├── m2_mcp/                            # MODULE 2 — External data via MCP
 │   ├── README.md                      # Module guide for learners
 │   ├── github_demo_client.py          # Connect to GitHub's real MCP server
+│   ├── sse_demo_client.py             # SSE client demo (connects over HTTP)
 │   ├── pricing_server.py              # Custom MCP: market pricing tools
 │   ├── inventory_server.py            # Custom MCP: inventory + seller constraints
 │   ├── exercises/                      # Hands-on coding exercises for Module 2
