@@ -91,27 +91,45 @@ Every module you learn fixes one or more rows in that failure table.
 
 ## How to run
 
-No API keys needed for either file.
+No API keys needed for either file. Both run in **demo mode by default** — step-by-step with pauses.
 
 ```bash
 # Run from the real-estate-negotiation-simulator/ directory
 
-# Part 1: Watch the naive version (it may finish, may not — that's the point)
+# Part 1: Naive agent — code walkthrough + 3 live demos (step-by-step by default)
 python m1_baseline/naive_negotiation.py
 
-# Part 2: Run the FSM demo (always terminates, prints state transitions)
+# Part 2: FSM — teaches FSM construction + 3 scenarios (step-by-step by default)
 python m1_baseline/state_machine.py
 ```
 
+**Common flags (both files):**
+
+```bash
+# Run without pauses (good for re-runs or fast review)
+python m1_baseline/naive_negotiation.py --fast
+python m1_baseline/state_machine.py --fast
+
+# Skip the code walkthrough, jump straight to the live demos
+python m1_baseline/naive_negotiation.py --skip-code
+
+# Run only a specific demo (naive_negotiation only)
+python m1_baseline/naive_negotiation.py --demo 1   # Demo 1: successful negotiation
+python m1_baseline/naive_negotiation.py --demo 2   # Demo 2: infinite loop problem
+python m1_baseline/naive_negotiation.py --demo 3   # Demo 3: failure modes breakdown
+```
+
 **What to expect from `naive_negotiation.py`:**
-- It runs a few rounds of text-based negotiation
-- Watch for garbled prices and unpredictable endings
-- Notice there is no guarantee it ends cleanly
+- Code walkthrough: shows `NaiveBuyer` and `NaiveSeller` source with teaching notes
+- Demo 1: a negotiation that may or may not finish cleanly — watch the prices
+- Demo 2: the infinite loop problem in action
+- Demo 3: each of the 5 failure modes triggered and explained one by one
 
 **What to expect from `state_machine.py`:**
-- It runs a short demo showing state transitions
-- Every transition is printed: `IDLE -> NEGOTIATING -> AGREED`
-- It always terminates — try changing the inputs and see that it still does
+- Walks through FSM construction step-by-step (states, transitions, termination proof)
+- Scenario 1: successful negotiation → AGREED
+- Scenario 2: seller rejects → FAILED
+- Scenario 3: max turns exceeded → FAILED (proves the loop always ends)
 
 ---
 

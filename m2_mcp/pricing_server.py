@@ -31,13 +31,55 @@ HOW AGENTS USE THIS:
 """
 
 import argparse
+import inspect
+import json
 import random
 import sys
+import textwrap
+import time
 from typing import Literal
 
 # FastMCP is the Pythonic way to build MCP servers
 # Install: pip install mcp
 from mcp.server.fastmcp import FastMCP
+
+
+# ─── Demo Helpers ─────────────────────────────────────────────────────────────
+
+def _wait(step_mode: bool, prompt: str = "  [ENTER to continue →] ") -> None:
+    if step_mode:
+        input(prompt)
+    else:
+        time.sleep(0.3)
+
+
+def _header(title: str, width: int = 65) -> None:
+    print("\n" + "╔" + "═" * (width - 2) + "╗")
+    pad = (width - 2 - len(title)) // 2
+    print("║" + " " * pad + title + " " * (width - 2 - pad - len(title)) + "║")
+    print("╚" + "═" * (width - 2) + "╝")
+
+
+def _section(title: str, width: int = 65) -> None:
+    print("\n" + "─" * width)
+    print("  " + title)
+    print("─" * width)
+
+
+def _print_source(method, notes: list = None) -> None:
+    raw = inspect.getsource(method)
+    src = textwrap.dedent(raw)
+    lines = src.rstrip().split("\n")
+    print()
+    print("  " + "┄" * 63)
+    for i, line in enumerate(lines, 1):
+        display = line if len(line) <= 90 else line[:87] + "…"
+        print(f"  {i:3d} │ {display}")
+    print("  " + "┄" * 63)
+    if notes:
+        print()
+        for note in notes:
+            print(f"  ▶  {note}")
 
 
 # ─── Initialize FastMCP Server ────────────────────────────────────────────────
@@ -412,16 +454,236 @@ def calculate_discount(
     }
 
 
+# ─── Demo Mode ────────────────────────────────────────────────────────────────
+
+def _run_demo(step_mode: bool) -> None:
+    """
+    Walk through the pricing server's structure and tools in teaching mode.
+    Calls the tool functions directly (no MCP protocol needed for local demo).
+    """
+    _header("Real Estate Pricing MCP Server — How MCP Servers Work")
+    print("""
+  This server exposes 2 MCP tools to agents:
+    1. get_market_price(address, property_type)
+    2. calculate_discount(base_price, market_condition, days_on_market)
+
+  Both buyer AND seller agents call these tools.
+  The server abstracts where the data comes from — Zillow, Redfin, or MLS.
+
+  This is the core MCP value: N agents × M servers, not N×M custom integrations.
+""")
+    _wait(step_mode, "  [ENTER: see how a tool is defined with @mcp.tool() →] ")
+
+    # ── Step 1: @mcp.tool() concept ───────────────────────────────────────────
+    _section("Step 1: The @mcp.tool() decorator — how tools are registered")
+    print("""
+  Without MCP: every agent writes its own HTTP client for every data source.
+  With MCP:    wrap any Python function with @mcp.tool() — auto-discoverable.
+
+  mcp = FastMCP("real-estate-pricing")   ← one line to create the server
+
+  @mcp.tool()                            ← one decorator registers the function
+  def get_market_price(address: str, property_type: str = "single_family") -> dict:
+      ...
+
+  FastMCP reads the function signature → builds a JSON schema → registers it.
+  When an agent calls session.list_tools(), it receives the complete schema.
+  No OpenAPI spec. No handwritten docs. No manual function registration.
+
+  The LLM then uses that schema to know EXACTLY how to call the tool.
+""")
+    _wait(step_mode, "  [ENTER: see the get_market_price tool source →] ")
+
+    # ── Step 2: get_market_price source ───────────────────────────────────────
+    _section("Tool 1 of 2: get_market_price() — full source")
+    print("""
+  What the buyer and seller BOTH call to understand fair market value.
+  In production: Zillow API, Redfin, MLS database.
+  In our demo:   reads from PROPERTY_DATABASE dict — same interface either way.
+  The caller (agent) doesn't know or care which data source is behind it.
+""")
+    _print_source(get_market_price, notes=[
+        "normalized = address.lower().strip()  — case-insensitive lookup",
+        "PROPERTY_DATABASE.get(normalized)  — deterministic for workshop demos",
+        "Fallback path: synthesizes plausible values for unknown addresses",
+        "Returns rich dict: comparables, market stats, negotiation_context",
+        "Buyer agent cites avg_comparable_price to justify every offer",
+        "Seller agent uses same data to understand buyer's perspective",
+    ])
+    _wait(step_mode, "  [ENTER: call get_market_price() live →] ")
+
+    # ── Step 3: Call get_market_price live ────────────────────────────────────
+    _section("Live call: get_market_price('742 Evergreen Terrace, Austin, TX 78701')")
+    print()
+    result = get_market_price("742 Evergreen Terrace, Austin, TX 78701", "single_family")
+
+    p = result["property_details"]
+    pricing = result["pricing"]
+    ms = result["market_statistics"]
+    mc = result["market_conditions"]
+    nc = result["negotiation_context"]
+    comps = result["comparable_sales"]
+
+    print(f"  address:           {result['address']}")
+    print(f"  property:          {p['bedrooms']}bd/{p['bathrooms']}ba, {p['sqft']:,} sqft, built {p['year_built']}")
+    print(f"  recent_upgrades:   {len(p['recent_upgrades'])} items (kitchen, roof, HVAC)")
+    print()
+    print(f"  list_price:        ${pricing['list_price']:,}")
+    print(f"  estimated_value:   ${pricing['estimated_market_value']:,}  ← what the market thinks it's worth")
+    print(f"  days_on_market:    {pricing['days_on_market']}")
+    print()
+    print(f"  avg_comp_price:    ${ms['avg_comparable_price']:,}  ({len(comps)} comparable sales)")
+    print(f"  valuation_summary: {ms['valuation_summary']}")
+    print()
+    print(f"  market_type:       {mc['market_type']}  ({mc['inventory_months_supply']} months supply)")
+    print(f"  list-to-sale ratio:{mc['typical_list_to_sale_ratio']}  (homes close at ~{int(mc['typical_list_to_sale_ratio']*100)}% of list)")
+    print()
+    low = nc["fair_market_value_range"]["low"]
+    high = nc["fair_market_value_range"]["high"]
+    print(f"  fair_value_range:  ${low:,} – ${high:,}")
+    print(f"  buyer_rec:         {nc['buyer_recommendation'][:80]}...")
+    print()
+    print(f"  This dict has {len(result)} top-level keys — agents cite specific fields in every message.")
+    _wait(step_mode, "  [ENTER: see the calculate_discount tool →] ")
+
+    # ── Step 4: calculate_discount source ─────────────────────────────────────
+    _section("Tool 2 of 2: calculate_discount() — full source")
+    print("""
+  What the buyer calls to determine their offer range.
+  The seller also calls this to ANTICIPATE the buyer's strategy.
+  Both sides use the same pricing logic from the same server — grounded negotiation.
+
+  This is information symmetry: both parties reason from the same market data.
+  Contrast with get_minimum_acceptable_price() in inventory_server.py
+    which is SELLER-ONLY — that's information ASYMMETRY enforced by MCP access control.
+""")
+    _print_source(calculate_discount, notes=[
+        "base_rates: hot=0–2%, balanced=2–5%, cold=5–10% discount off asking",
+        "dom_adjustment: stale listings (30/60/90+ days) → 1.2/2.5/4% more room",
+        "condition_adjustment: poor property condition → up to 5% extra discount",
+        "Returns 4 offer anchors: conservative, moderate, aggressive, ultra_aggressive",
+        "Also returns negotiation_tips — LLM uses these in its message to the seller",
+        "data_source field: 'MCP Pricing Server (simulated)' — caller always knows origin",
+    ])
+    _wait(step_mode, "  [ENTER: call calculate_discount() live →] ")
+
+    # ── Step 5: Call calculate_discount live ──────────────────────────────────
+    _section("Live call: calculate_discount(485_000, 'balanced', 18, 'good')")
+    print()
+    result2 = calculate_discount(485_000, "balanced", 18, "good")
+    da = result2["discount_analysis"]
+    so = result2["suggested_offer_prices"]
+    print(f"  base_price:         $485,000")
+    print(f"  market_condition:   balanced")
+    print(f"  days_on_market:     18  (relatively fresh listing)")
+    print()
+    print(f"  discount_range:     {da['min_discount_pct']}% – {da['max_discount_pct']}%")
+    print(f"  dom_adjustment:     +{da['dom_adjustment_pct']}%")
+    print()
+    print(f"  Suggested offer prices:")
+    print(f"    conservative:     ${so['conservative']:,}   (safest — lowest discount)")
+    print(f"    moderate:         ${so['moderate']:,}   (middle ground)")
+    print(f"    aggressive:       ${so['aggressive']:,}   (pushes the range)")
+    print(f"    ultra_aggressive: ${so['ultra_aggressive']:,}   (risks rejection)")
+    print()
+    print(f"  reasoning:  {result2['reasoning']}")
+    print()
+    print(f"  negotiation_tips ({len(result2['negotiation_tips'])}):")
+    for tip in result2["negotiation_tips"]:
+        print(f"    • {tip}")
+    _wait(step_mode, "  [ENTER: see the N×M problem this server solves →] ")
+
+    # ── Step 6: N×M problem ───────────────────────────────────────────────────
+    _section("Why MCP? The N×M Integration Problem")
+    print("""
+  WITHOUT MCP — every agent integrates every data source directly:
+  ┌────────────────┬──────────────┬──────────────┬──────────────┐
+  │                │  Zillow API  │  Redfin API  │  MLS Direct  │
+  ├────────────────┼──────────────┼──────────────┼──────────────┤
+  │  Buyer agent   │  custom code │  custom code │  custom code │
+  │  Seller agent  │  custom code │  custom code │  custom code │
+  │  LangGraph node│  custom code │  custom code │  custom code │
+  └────────────────┴──────────────┴──────────────┴──────────────┘
+  = 3 agents × 3 data sources = 9 custom integrations
+
+  WITH MCP (this server):
+  ┌────────────────┬──────────────────────────────────────────────┐
+  │                │       pricing_server.py  (one server)        │
+  ├────────────────┼──────────────────────────────────────────────┤
+  │  Buyer agent   │  call_tool("get_market_price")               │
+  │  Seller agent  │  call_tool("get_market_price")               │
+  │  LangGraph node│  call_tool("get_market_price")               │
+  └────────────────┴──────────────────────────────────────────────┘
+  = 3 agents × 1 MCP call = 3 integrations
+
+  Switching data source (Zillow → Redfin → live MLS)?
+    WITHOUT MCP: modify code in every agent
+    WITH MCP:    change ONE function in pricing_server.py — agents never know
+""")
+    _wait(step_mode, "  [ENTER: see how agents connect to this server →] ")
+
+    # ── Step 7: How agents connect ────────────────────────────────────────────
+    _section("How agents connect — stdio vs SSE transport")
+    print("""
+  STDIO TRANSPORT (Module 4 — buyer_adk.py, seller_adk.py):
+    MCPToolset(
+        connection_params=StdioConnectionParams(
+            server_params=StdioServerParameters(
+                command=sys.executable,
+                args=["m2_mcp/pricing_server.py"],  ← spawns THIS file as subprocess
+            )
+        )
+    )
+    tools = await toolset.get_tools()  ← calls MCP list_tools(), gets schemas
+    # Agent now has get_market_price + calculate_discount as callable tools
+
+  SSE TRANSPORT (network mode — multiple simultaneous clients):
+    Terminal 1: python m2_mcp/pricing_server.py --sse --port 8001
+    Terminal 2: python m2_mcp/sse_demo_client.py          ← connects over HTTP
+    Terminal 3: python m2_mcp/sse_demo_client.py --both   ← connects to both servers
+
+  Same MCP protocol. Same tools. Same agent code. Just a different transport.
+
+  KEY INSIGHT:
+    The agent doesn't know or care whether it's using stdio or SSE.
+    It calls list_tools() and call_tool() the same way either way.
+""")
+
+
 # ─── Entry Point ──────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="Real Estate Pricing MCP Server — supports stdio and SSE transports"
+        description="Real Estate Pricing MCP Server — supports stdio, SSE, and demo modes",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  python pricing_server.py              # demo mode (default when run in a terminal)
+  python pricing_server.py --fast       # demo without pauses
+  python pricing_server.py --check      # verify server loads correctly
+  python pricing_server.py --sse --port 8001  # HTTP/SSE server mode
+  python pricing_server.py --server     # force stdio server mode (agents use this automatically)
+""",
     )
     parser.add_argument(
         "--check",
         action="store_true",
         help="Import check: verify server loads correctly then exit 0. No network I/O.",
+    )
+    parser.add_argument(
+        "--demo",
+        action="store_true",
+        help="Run interactive teaching demo (default when run in a terminal — kept for compatibility)",
+    )
+    parser.add_argument(
+        "--fast",
+        action="store_true",
+        help="Disable step pauses in demo mode",
+    )
+    parser.add_argument(
+        "--server",
+        action="store_true",
+        help="Force stdio server mode (normally auto-detected when spawned as a subprocess)",
     )
     parser.add_argument(
         "--sse",
@@ -454,7 +716,15 @@ if __name__ == "__main__":
         print(f"Real Estate Pricing MCP Server (SSE mode)")
         print(f"   Listening on: http://{args.host}:{args.port}/sse")
         print(f"   Connect via: SseServerParams(url='http://localhost:{args.port}/sse')")
+        print(f"   Tools: get_market_price, calculate_discount")
+        print(f"   Ctrl+C to stop.")
         mcp.run(transport="sse")
-    else:
-        # stdio mode (default): parent process spawns this server and talks via pipes.
+    elif args.server or not sys.stdin.isatty():
+        # stdio server mode: either explicitly requested (--server) or auto-detected because
+        # stdin is a pipe — meaning an agent spawned this process as a subprocess.
         mcp.run()
+    else:
+        # Interactive terminal (default): run the teaching demo.
+        # Students can run: python pricing_server.py
+        # --demo flag is accepted as an alias for backwards compatibility.
+        _run_demo(step_mode=not args.fast)

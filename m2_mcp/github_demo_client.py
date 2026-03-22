@@ -32,12 +32,35 @@ import asyncio
 import json
 import os
 import sys
+import time
 from typing import Any
 
 # MCP Python SDK
 # Install: pip install mcp
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
+
+
+# ─── Demo Helpers ─────────────────────────────────────────────────────────────
+
+def _wait(step_mode: bool, prompt: str = "  [ENTER to continue →] ") -> None:
+    if step_mode:
+        input(prompt)
+    else:
+        time.sleep(0.4)
+
+
+def _header(title: str, width: int = 65) -> None:
+    print("\n" + "╔" + "═" * (width - 2) + "╗")
+    pad = (width - 2 - len(title)) // 2
+    print("║" + " " * pad + title + " " * (width - 2 - pad - len(title)) + "║")
+    print("╚" + "═" * (width - 2) + "╝")
+
+
+def _section(title: str, width: int = 65) -> None:
+    print("\n" + "─" * width)
+    print("  " + title)
+    print("─" * width)
 
 
 def _load_env_file_if_present(env_path: str = ".env") -> None:
@@ -86,7 +109,7 @@ if not GITHUB_TOKEN or any(GITHUB_TOKEN.lower().startswith(p) for p in _PLACEHOL
 
 # ─── Demo Sections ────────────────────────────────────────────────────────────
 
-async def demo_section_1_connection(session: ClientSession) -> None:
+async def demo_section_1_connection(session: ClientSession, step_mode: bool = True) -> None:
     """
     DEMO SECTION 1: Connecting and Initializing
     =============================================
@@ -94,22 +117,25 @@ async def demo_section_1_connection(session: ClientSession) -> None:
     Under the hood, this sends:
         {"jsonrpc": "2.0", "method": "initialize", "params": {...}}
     """
-    print("=" * 60)
-    print("SECTION 1: Connection & Initialization")
-    print("=" * 60)
-    print()
-    print("Connected to GitHub MCP server via stdio transport")
-    print()
-    print("What just happened under the hood:")
-    print("   1. Our Python process spawned a child process:")
-    print("      npx -y @modelcontextprotocol/server-github")
-    print("   2. We communicate via stdin/stdout pipes")
-    print("   3. Sent initialize request over the pipe")
-    print("   4. Server responded with its capabilities")
-    print()
+    _header("SECTION 1: Connection & Initialization")
+    print("""
+  Connected to GitHub MCP server via stdio transport.
+
+  What just happened under the hood:
+    1. Our Python process spawned a child process:
+         npx -y @modelcontextprotocol/server-github
+    2. Communication via stdin/stdout pipes (stdio transport)
+    3. Sent:  {"jsonrpc": "2.0", "method": "initialize", "params": {...}}
+    4. Server responded with its capabilities
+
+  This is IDENTICAL to how our buyer agent connects to pricing_server.py:
+    Instead of npx, it spawns: python m2_mcp/pricing_server.py
+    Same JSON-RPC handshake. Same stdio pipes. Same protocol.
+""")
+    _wait(step_mode, "  [ENTER: see tool discovery →] ")
 
 
-async def demo_section_2_tool_discovery(session: ClientSession) -> list:
+async def demo_section_2_tool_discovery(session: ClientSession, step_mode: bool = True) -> list:
     """
     DEMO SECTION 2: Tool Discovery (list_tools)
     =============================================
@@ -122,54 +148,75 @@ async def demo_section_2_tool_discovery(session: ClientSession) -> list:
     - OpenAPI: You write a spec, then generate code
     - MCP: Tools self-describe their schemas automatically
     """
-    print("=" * 60)
-    print("SECTION 2: Tool Discovery (list_tools)")
-    print("=" * 60)
-    print()
+    _header("SECTION 2: Tool Discovery — session.list_tools()")
+    print("""
+  This is the KEY MCP feature: auto-discovery.
+  The agent calls session.list_tools() → receives full JSON schemas for every tool.
+  No docs needed. No manual function registration. The LLM knows exactly how to call each tool.
+
+  Compare to traditional approaches:
+    REST API:  read documentation, write auth, construct URL, parse response manually
+    OpenAPI:   write a YAML spec, generate client code, handle versioning
+    MCP:       call list_tools() — schemas are automatically generated from @mcp.tool()
+""")
+    _wait(step_mode, "  [ENTER: list all GitHub MCP tools →] ")
 
     tools_response = await session.list_tools()
     tools = tools_response.tools
 
-    print(f"GitHub MCP server exposes {len(tools)} tools:")
+    _section(f"GitHub MCP server exposes {len(tools)} tools")
     print()
-
     for i, tool in enumerate(tools, 1):
         print(f"  {i:2}. {tool.name}")
         print(f"       {tool.description[:70]}...")
         print()
 
-    print("This is what an LLM agent sees when it connects to any MCP server.")
-    print("   The agent doesn't need to be told how to use GitHub's API --")
-    print("   it learns from the schemas provided by the MCP server.")
-    print()
+    print("  This is what an LLM agent sees when it connects to any MCP server.")
+    print("  The agent doesn't need to know GitHub's API — it learns from the schemas.")
+    _wait(step_mode, "  [ENTER: see the full JSON schema for search_repositories →] ")
 
-    # Show the full schema for one tool
-    print("Full schema for 'search_repositories' (what the LLM receives):")
-    print()
+    _section("Full JSON schema for 'search_repositories' (what the LLM receives)")
+    print("""
+  This schema is what the LLM sees. It uses it to construct tool calls.
+  Same pattern in our pricing_server.py — every @mcp.tool() generates a schema.
+""")
     for tool in tools:
         if tool.name == "search_repositories":
-            print(json.dumps({
+            schema = {
                 "name": tool.name,
                 "description": tool.description,
-                "inputSchema": tool.inputSchema.model_dump() if hasattr(tool.inputSchema, 'model_dump') else tool.inputSchema
-            }, indent=2))
+                "inputSchema": tool.inputSchema.model_dump() if hasattr(tool.inputSchema, "model_dump") else tool.inputSchema,
+            }
+            text = json.dumps(schema, indent=2)
+            for line in text.split("\n")[:40]:
+                print("  " + line)
+            if len(text.split("\n")) > 40:
+                print("  ... (truncated)")
             break
     print()
+    _wait(step_mode, "  [ENTER: call tools live →] ")
 
     return tools
 
 
-async def demo_section_3_tool_calls(session: ClientSession) -> None:
+async def demo_section_3_tool_calls(session: ClientSession, step_mode: bool = True) -> None:
     """
     DEMO SECTION 3: Calling Tools
     ==============================
     Shows how to call an MCP tool with structured arguments.
     This is IDENTICAL to how our buyer agent calls get_market_price().
     """
-    print("=" * 60)
-    print("SECTION 3: Calling Tools (tools/call)")
-    print("=" * 60)
-    print()
+    _header("SECTION 3: Calling Tools — session.call_tool()")
+    print("""
+  Calling a tool is one line: await session.call_tool(name, arguments)
+  This is IDENTICAL to how our real estate agents call:
+    get_market_price("742 Evergreen Terrace, Austin, TX 78701")
+    get_inventory_level("78701")
+    get_minimum_acceptable_price("742-evergreen-austin-78701")
+
+  The pattern: discover → call → parse result. Same for GitHub or our servers.
+""")
+    _wait(step_mode, "  [ENTER: Tool Call 1 — get_me() →] ")
 
     tools_response = await session.list_tools()
     tools_by_name = {tool.name: tool for tool in tools_response.tools}
@@ -195,33 +242,38 @@ async def demo_section_3_tool_calls(session: ClientSession) -> None:
         return resolved_args
 
     # ── Tool Call 1: Get current user ────────────────────────────────────────
-    print("Tool Call 1: get_me()")
-    print("   Purpose: Get the authenticated user's info")
-    print("   Arguments: none")
-    print()
-
+    _section("Tool Call 1: get_me()")
+    print("""
+  Purpose:   Get the authenticated user's info
+  Arguments: none — the server uses GITHUB_TOKEN from its environment
+  Under the hood:  {"jsonrpc":"2.0","method":"tools/call","params":{"name":"get_me","arguments":{}}}
+""")
     if "get_me" in tools_by_name:
         try:
             me_result = await session.call_tool("get_me", {})
             me_data = _parse_tool_result(me_result)
-
-            print(f"   Result:")
-            print(f"      Username: {me_data.get('login', 'N/A')}")
-            print(f"      Name:     {me_data.get('name', 'N/A')}")
-            print(f"      Public repos: {me_data.get('public_repos', 'N/A')}")
+            print(f"  Result:")
+            print(f"    Username:     {me_data.get('login', 'N/A')}")
+            print(f"    Name:         {me_data.get('name', 'N/A')}")
+            print(f"    Public repos: {me_data.get('public_repos', 'N/A')}")
             print()
         except Exception as e:
-            print(f"   get_me failed: {e}")
+            print(f"  get_me failed: {e}")
             print()
     else:
-        print("   Skipped: current server version does not expose get_me().")
+        print("  Skipped: current server version does not expose get_me().")
         print()
+    _wait(step_mode, "  [ENTER: Tool Call 2 — search_repositories() →] ")
 
     # ── Tool Call 2: Search repositories ─────────────────────────────────────
-    print("Tool Call 2: search_repositories(query='real estate python mcp')")
-    print("   Purpose: Search GitHub for relevant repositories")
-    print("   This simulates how an agent might research the domain")
-    print()
+    _section("Tool Call 2: search_repositories(query='real estate python mcp')")
+    print("""
+  Purpose:   Search GitHub for repositories — same as an agent researching the domain
+  This is the same call pattern as:
+    get_market_price("742 Evergreen Terrace, Austin, TX 78701", "single_family")
+  in our real estate pricing server.
+""")
+    _wait(step_mode, "  [ENTER: run search →] ")
 
     try:
         search_repos_args = build_args_from_schema(
@@ -251,13 +303,16 @@ async def demo_section_3_tool_calls(session: ClientSession) -> None:
             print()
 
     except Exception as e:
-        print(f"   search_repositories failed: {e}")
+        print(f"  search_repositories failed: {e}")
         print()
+    _wait(step_mode, "  [ENTER: Tool Call 3 — search_code() →] ")
 
-    # ── Tool Call 3: Get file contents ────────────────────────────────────────
-    print("Tool Call 3: search_code(query='def negotiate')")
-    print("   Purpose: Search code across GitHub")
-    print()
+    # ── Tool Call 3: Search code ──────────────────────────────────────────────
+    _section("Tool Call 3: search_code(query='def negotiate real estate python')")
+    print("""
+  Purpose:  Search code across GitHub — like an agent finding reference implementations
+""")
+    _wait(step_mode, "  [ENTER: run search →] ")
 
     try:
         search_code_args = build_args_from_schema(
@@ -283,20 +338,18 @@ async def demo_section_3_tool_calls(session: ClientSession) -> None:
         print()
 
     except Exception as e:
-        print(f"   search_code failed: {e}")
+        print(f"  search_code failed: {e}")
         print()
+    _wait(step_mode, "  [ENTER: see MCP vs direct API comparison →] ")
 
 
-async def demo_section_4_comparison(session: ClientSession) -> None:
+async def demo_section_4_comparison(session: ClientSession, step_mode: bool = True) -> None:
     """
     DEMO SECTION 4: MCP vs Direct API Comparison
     =============================================
     Shows the difference between calling GitHub via MCP vs direct REST API.
     """
-    print("=" * 60)
-    print("SECTION 4: MCP vs Direct GitHub API -- Side by Side")
-    print("=" * 60)
-    print()
+    _header("SECTION 4: MCP vs Direct GitHub API — Side by Side")
 
     print("WITHOUT MCP (direct API call):")
     print("-" * 40)
@@ -331,48 +384,51 @@ async def demo_section_4_comparison(session: ClientSession) -> None:
   # Switching from GitHub to GitLab? Swap server, same client code.
 """)
 
-    print("KEY INSIGHT:")
-    print("   Our real estate pricing server works EXACTLY the same way.")
-    print("   Instead of GitHub's API, it wraps pricing/inventory data.")
-    print("   Our buyer and seller agents call it with the SAME pattern.")
-    print()
+    print("""
+  KEY INSIGHT:
+    Our real estate pricing server works EXACTLY the same way.
+    Instead of GitHub's REST API, it wraps Zillow/MLS pricing data.
+    Our buyer and seller agents call it with the SAME client pattern.
+
+    Any MCP-compatible server. Same client code. Different data.
+    That's the N×M problem solved.
+""")
+    _wait(step_mode, "  [ENTER: connect this to our workshop →] ")
 
 
-async def demo_section_5_connection_to_our_project(session: ClientSession) -> None:
+async def demo_section_5_connection_to_our_project(session: ClientSession, step_mode: bool = True) -> None:
     """
     DEMO SECTION 5: Connecting This to Our Workshop
     ================================================
     Shows how everything learned here applies to our negotiation simulator.
     """
-    print("=" * 60)
-    print("SECTION 5: How This Connects to Our Workshop")
-    print("=" * 60)
-    print()
+    _header("SECTION 5: How This Connects to Our Workshop")
 
-    print("GitHub MCP Server            ->  Our Real Estate MCP Servers")
-    print("-" * 60)
-    print()
-    print("  npx @modelcontextprotocol/   ->  python m2_mcp/pricing_server.py")
-    print("       server-github")
-    print()
-    print("  search_repositories()        ->  get_market_price()")
-    print("  get_file_contents()          ->  calculate_discount()")
-    print("  create_issue()               ->  get_inventory_level()")
-    print("  list_pull_requests()         ->  get_minimum_acceptable_price()")
-    print()
-    print("  GITHUB_TOKEN env var         ->  (no auth needed for our server)")
-    print()
-    print("  stdio transport              ->  stdio transport (simple version)")
-    print("                               ->  SSE transport (python --sse flag)")
-    print()
-    print("The buyer and seller agents connect to our MCP servers")
-    print("using the EXACT same MCPClientSession pattern you just saw.")
-    print()
-    print("Next steps:")
-    print("  1. Run the pricing server:  python m2_mcp/pricing_server.py")
-    print("  2. See our buyer agent:     cat m3_langgraph_multiagents/buyer_simple.py")
-    print("  3. Run the full demo:       python m3_langgraph_multiagents/main_langgraph_multiagent.py")
-    print()
+    print("""
+  ╔══════════════════════════════╦══════════════════════════════════════╗
+  ║  GitHub MCP Server           ║  Our Real Estate MCP Servers         ║
+  ╠══════════════════════════════╬══════════════════════════════════════╣
+  ║  npx @modelcontextprotocol/  ║  python m2_mcp/pricing_server.py     ║
+  ║       server-github          ║                                      ║
+  ╠══════════════════════════════╬══════════════════════════════════════╣
+  ║  search_repositories()       ║  get_market_price()                  ║
+  ║  get_file_contents()         ║  calculate_discount()                ║
+  ║  create_issue()              ║  get_inventory_level()               ║
+  ║  list_pull_requests()        ║  get_minimum_acceptable_price()      ║
+  ╠══════════════════════════════╬══════════════════════════════════════╣
+  ║  GITHUB_TOKEN env var        ║  (no auth for our demo server)       ║
+  ║  stdio transport             ║  stdio transport (agents use this)   ║
+  ║  (SSE not shown here)        ║  SSE transport (--sse --port 8001)   ║
+  ╚══════════════════════════════╩══════════════════════════════════════╝
+
+  The buyer and seller agents connect to our MCP servers using the
+  EXACT same MCPClientSession / MCPToolset pattern you just saw here.
+
+  Next steps:
+    python m2_mcp/pricing_server.py --demo      ← see tools called live
+    python m2_mcp/inventory_server.py --demo    ← see information asymmetry
+    python m2_mcp/sse_demo_client.py --both     ← SSE transport demo
+""")
 
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -390,7 +446,7 @@ def _parse_tool_result(result: Any) -> dict:
 
 # ─── Main ─────────────────────────────────────────────────────────────────────
 
-async def main() -> None:
+async def main(step_mode: bool = True) -> None:
     """
     Main function — runs all demo sections sequentially.
 
@@ -402,12 +458,24 @@ async def main() -> None:
     5. Use the session to call tools
     6. Clean up when done (context managers handle this)
     """
-    print()
-    print("=" * 65)
-    print("GITHUB MCP SERVER -- LIVE DEMO")
-    print("Understanding MCP through a tool you already know")
-    print("=" * 65)
-    print()
+    _header("GitHub MCP Server — Understanding MCP via a Tool You Already Know")
+    print("""
+  Why GitHub? Every engineer knows GitHub's API.
+  By seeing MCP work with GitHub first, you understand the protocol
+  before we introduce our custom real estate servers.
+
+  The pattern is IDENTICAL for our pricing_server.py and inventory_server.py.
+
+  5 sections:
+    1. Connection & initialization (the MCP handshake)
+    2. Tool discovery (list_tools — auto-discovery from schemas)
+    3. Calling tools (call_tool — structured args, structured results)
+    4. MCP vs direct API (side-by-side comparison)
+    5. How this connects to our real estate agents
+
+  Controls: ENTER advances. Ctrl-C to exit at any time.
+""")
+    _wait(step_mode, "  [ENTER: connect to GitHub MCP server →] ")
 
     # Define how to connect to GitHub's MCP server
     # The MCP server is spawned as a subprocess via `npx`
@@ -420,10 +488,11 @@ async def main() -> None:
         }
     )
 
-    print(f"Connecting to GitHub MCP server...")
-    print(f"   Command: npx -y @modelcontextprotocol/server-github")
-    print(f"   Transport: stdio (subprocess pipes)")
-    print(f"   Token: {GITHUB_TOKEN[:8]}..." if len(GITHUB_TOKEN) > 8 else "   Token: (set)")
+    print(f"  Connecting to GitHub MCP server...")
+    print(f"    Command:   npx -y @modelcontextprotocol/server-github")
+    print(f"    Transport: stdio (subprocess pipes)")
+    token_display = f"{GITHUB_TOKEN[:8]}..." if len(GITHUB_TOKEN) > 8 else "(set)"
+    print(f"    Token:     {token_display}")
     print()
 
     # The stdio_client context manager:
@@ -443,26 +512,47 @@ async def main() -> None:
             # This performs the MCP handshake (exchange capabilities)
             await session.initialize()
 
-            # Run all demo sections
-            await demo_section_1_connection(session)
-            tools = await demo_section_2_tool_discovery(session)
-            await demo_section_3_tool_calls(session)
-            await demo_section_4_comparison(session)
-            await demo_section_5_connection_to_our_project(session)
+            # Run all demo sections with step mode
+            await demo_section_1_connection(session, step_mode)
+            tools = await demo_section_2_tool_discovery(session, step_mode)
+            await demo_section_3_tool_calls(session, step_mode)
+            await demo_section_4_comparison(session, step_mode)
+            await demo_section_5_connection_to_our_project(session, step_mode)
 
-    print("=" * 60)
-    print("Demo complete. GitHub MCP connection closed (subprocess terminated).")
-    print()
-    print("You now understand:")
-    print("  - How MCP stdio transport works (subprocess + pipes)")
-    print("  - How tool discovery works (list_tools)")
-    print("  - How tool calls work (call_tool with JSON args)")
-    print("  - How results are returned (content blocks)")
-    print()
-    print("This EXACT pattern powers our real estate negotiation agents.")
-    print("See m2_mcp/pricing_server.py for our custom MCP server.")
-    print()
+    _header("Demo Complete")
+    print("""
+  GitHub MCP connection closed (subprocess terminated).
+
+  You now understand:
+    • How MCP stdio transport works  (subprocess + stdin/stdout pipes)
+    • How tool discovery works        (session.list_tools() → JSON schemas)
+    • How tool calls work             (session.call_tool(name, args) → content blocks)
+    • How results are returned        (result.content[0].text → parse JSON)
+
+  This EXACT pattern powers our real estate negotiation agents.
+
+  Next:
+    python m2_mcp/pricing_server.py --demo    ← our custom MCP server
+    python m2_mcp/inventory_server.py --demo  ← information asymmetry demo
+    python m2_mcp/sse_demo_client.py --both   ← SSE transport demo
+""")
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    import argparse
+    parser = argparse.ArgumentParser(
+        description="GitHub MCP Demo Client — understanding MCP via GitHub",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  export GITHUB_TOKEN=ghp_your_token_here
+  python github_demo_client.py            # step-by-step (default)
+  python github_demo_client.py --fast     # no pauses, run at full speed
+""",
+    )
+    parser.add_argument(
+        "--fast", action="store_true",
+        help="Disable step mode — run all sections without pausing",
+    )
+    _args = parser.parse_args()
+    asyncio.run(main(step_mode=not _args.fast))

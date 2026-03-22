@@ -169,6 +169,58 @@ class SellerADKA2AExecutor(AgentExecutor):
         await updater.cancel(message=cancel_message)
 
 
+def _print_startup_banner(base_url: str) -> None:
+    width = 65
+    print("\n" + "╔" + "═" * (width - 2) + "╗")
+    title = "A2A Seller Server — ADK + OpenAI"
+    pad = (width - 2 - len(title)) // 2
+    print("║" + " " * pad + title + " " * (width - 2 - pad - len(title)) + "║")
+    print("╚" + "═" * (width - 2) + "╝")
+    print(f"""
+  Module:    m4_adk_multiagents/a2a_protocol_seller_server.py
+  Stack:     ADK SellerAgent + OpenAI GPT-4o + 2 MCP servers
+  Protocol:  A2A (Agent-to-Agent) over HTTP JSON-RPC
+
+  ── WHAT THIS SERVER EXPOSES ──────────────────────────────
+
+  Agent Card (discovery):
+    GET  {base_url}/.well-known/agent-card.json
+         → Returns: name, skills, capabilities, protocol version
+         → Buyers fetch this FIRST before sending any message
+
+  Message endpoint (JSON-RPC):
+    POST {base_url}/
+         Method: message/send
+         Input:  BuyerEnvelope JSON (session_id, round, price, message)
+         Output: SellerEnvelope JSON (counter_price, message, accept/reject)
+
+  ── A2A PROTOCOL FLOW ─────────────────────────────────────
+
+  1. Buyer fetches Agent Card  →  GET /.well-known/agent-card.json
+  2. Buyer sends offer         →  POST / (JSON-RPC message/send)
+  3. Server validates envelope →  BuyerEnvelope.model_validate(json)
+  4. SellerAgentADK executes   →  GPT-4o + 3 MCP tool calls
+  5. Server returns counter    →  SellerEnvelope JSON in TextPart
+
+  ── INFORMATION ASYMMETRY ─────────────────────────────────
+
+  This seller has BOTH MCP servers:
+    Pricing server:   get_market_price, calculate_discount
+    Inventory server: get_inventory_level, get_minimum_acceptable_price
+
+  The buyer orchestrator only has pricing server tools.
+  This enforces seller's floor price stays confidential.
+
+  ── HOW TO CONNECT ────────────────────────────────────────
+
+  In another terminal, run the orchestrator:
+    python m4_adk_multiagents/a2a_protocol_http_orchestrator.py \\
+           --seller-url {base_url} --demo
+
+  ── SERVER READY ─────────────────────────────────────────
+""")
+
+
 async def main() -> None:
     parser = argparse.ArgumentParser(description="True A2A seller server (ADK + OpenAI)")
     parser.add_argument("--host", default="127.0.0.1")
@@ -180,7 +232,8 @@ async def main() -> None:
         raise SystemExit(1)
 
     base_url = f"http://{args.host}:{args.port}"
-    # Agent card is the discovery metadata clients fetch before messaging.
+    _print_startup_banner(base_url)
+
     card = _build_agent_card(base_url)
 
     handler = DefaultRequestHandler(
@@ -189,16 +242,15 @@ async def main() -> None:
         queue_manager=InMemoryQueueManager(),
     )
 
-    # Use JSON-RPC compatible app wiring for the legacy A2AClient in this module.
     app_builder = A2AFastAPIApplication(agent_card=card, http_handler=handler)
     app = app_builder.build(agent_card_url="/.well-known/agent-card.json", rpc_url="/")
 
     import uvicorn
 
-    print(f"A2A seller server listening at {base_url}")
-    print(f"Agent card: {base_url}/.well-known/agent-card.json")
-    config = uvicorn.Config(app=app, host=args.host, port=args.port)
+    config = uvicorn.Config(app=app, host=args.host, port=args.port, log_level="warning")
     server = uvicorn.Server(config)
+    print(f"  Listening at {base_url}  (Ctrl+C to stop)")
+    print()
     try:
         await server.serve()
     finally:

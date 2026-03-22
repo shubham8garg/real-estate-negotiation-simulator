@@ -84,14 +84,14 @@ This is the first custom MCP server. It wraps simulated real estate pricing data
 **Two transport modes (same server, different usage):**
 
 ```bash
-# stdio — default, client spawns this as a subprocess (used by Modules 3 + 4)
+# Teaching demo — default when run in a terminal (shows tool definitions and live calls)
 python m2_mcp/pricing_server.py
 
 # SSE — HTTP server, multiple clients can connect at once
 python m2_mcp/pricing_server.py --sse --port 8001
 ```
 
-In Modules 3 and 4, the agents start this server automatically as a subprocess. You don't need to run it manually — but you *can* to inspect it.
+In Modules 3 and 4, the agents start this server automatically as a subprocess (stdio mode is auto-detected). You don't need to run it manually.
 
 ---
 
@@ -113,7 +113,7 @@ The buyer agent never connects to `get_minimum_acceptable_price`. This is intent
 This is the same pattern used in real production systems: MCP access control means different agents get different tools.
 
 ```bash
-# stdio — default
+# Teaching demo — default when run in a terminal (shows tool definitions + information asymmetry)
 python m2_mcp/inventory_server.py
 
 # SSE
@@ -149,37 +149,39 @@ The agent never imports your Python functions directly. It talks to the server o
 
 ## How to run
 
+Both MCP servers run in **demo mode by default** when you run them in a terminal. No API keys needed.
+
 ```bash
+# Teaching demos (step-by-step by default)
+python m2_mcp/pricing_server.py        # walks through tool definitions + live calls
+python m2_mcp/inventory_server.py      # walks through tools + information asymmetry
+
+# Without pauses
+python m2_mcp/pricing_server.py --fast
+python m2_mcp/inventory_server.py --fast
+
 # GitHub MCP demo (needs GITHUB_TOKEN + Node.js)
 export GITHUB_TOKEN=ghp_your_token_here
 python m2_mcp/github_demo_client.py
 
-# Inspect pricing server tools (no API key needed)
-python m2_mcp/pricing_server.py
-# Then Ctrl+C to stop (it's a server, it waits for connections)
-
-# Inspect inventory server tools (no API key needed)
-python m2_mcp/inventory_server.py
-
-# SSE mode — run in one terminal, connect from another
-python m2_mcp/pricing_server.py --sse --port 8001
-python m2_mcp/inventory_server.py --sse --port 8002
-
-# Then connect with the SSE demo client (in another terminal)
-python m2_mcp/sse_demo_client.py                    # pricing server only
-python m2_mcp/sse_demo_client.py --both              # both servers
+# SSE mode — run servers in separate terminals, then connect a client
+python m2_mcp/pricing_server.py --sse --port 8001    # Terminal 1
+python m2_mcp/inventory_server.py --sse --port 8002  # Terminal 2
+python m2_mcp/sse_demo_client.py --both              # Terminal 3 (after servers are up)
 ```
 
-**What to expect from the GitHub demo:**
-- It connects to GitHub's server via `npx`
-- Lists all available tools (there are ~20+)
-- Calls a couple of them and prints the results
-- Shows you exactly how an LLM "sees" tools as JSON schemas
+**What to expect from `pricing_server.py` (demo mode):**
+- Shows the `@mcp.tool()` decorator pattern with source code
+- Calls `get_market_price` and `calculate_discount` live and prints results
+- Explains the N×M problem MCP solves (N agents × M tools without MCP = N×M integrations)
 
-**What to expect from the pricing/inventory servers:**
-- They start and wait for a client to connect
-- On their own they don't print much — they're servers
-- In Modules 3 and 4, the agents connect to them automatically
+**What to expect from `inventory_server.py` (demo mode):**
+- Shows both tools: `get_inventory_level` (public) and `get_minimum_acceptable_price` (seller-only)
+- Demonstrates the information asymmetry: buyer never sees the floor price
+- Calls both tools live and prints the results
+
+**Note on Modules 3 and 4:**
+When agents in m3/m4 spawn these servers as subprocesses, they automatically run in stdio server mode (detected via stdin pipe). You never need to start them manually for m3/m4 to work.
 
 ---
 

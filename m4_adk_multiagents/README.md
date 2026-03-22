@@ -117,27 +117,44 @@ The seller has access to `get_minimum_acceptable_price` — the buyer does not. 
 
 ## How to run
 
-**You need two terminals.**
+Requires `OPENAI_API_KEY`. **You need two terminals.** Demo mode (code walkthroughs) only runs with `--demo`.
 
 ```bash
-# Terminal 1 — start the seller A2A server
+# Terminal 1 — start the seller A2A server (always required)
 python m4_adk_multiagents/a2a_protocol_seller_server.py --port 9102
-# You should see: "A2A seller server listening at http://127.0.0.1:9102"
+# You should see the startup banner and: "Listening at http://127.0.0.1:9102"
 
-# Optional but recommended: open the Agent Card in a browser first
+# Optional: inspect the Agent Card in a browser before connecting
 # http://127.0.0.1:9102/.well-known/agent-card.json
 
-# Terminal 2 — run the full multi-round orchestrator (after the server is up)
-python m4_adk_multiagents/a2a_protocol_http_orchestrator.py --seller-url http://127.0.0.1:9102 --rounds 5
+# Terminal 2 — with full code walkthrough + live negotiation (step-by-step pauses)
+python m4_adk_multiagents/a2a_protocol_http_orchestrator.py --demo --seller-url http://127.0.0.1:9102
 
-# Optional: run the single-turn buyer demo
+# With walkthrough, no pauses
+python m4_adk_multiagents/a2a_protocol_http_orchestrator.py --demo --fast --seller-url http://127.0.0.1:9102
+
+# Skip walkthroughs, just run the negotiation
+python m4_adk_multiagents/a2a_protocol_http_orchestrator.py --seller-url http://127.0.0.1:9102
+
+# Adjust number of rounds
+python m4_adk_multiagents/a2a_protocol_http_orchestrator.py --demo --seller-url http://127.0.0.1:9102 --rounds 8
+
+# Optional: single-turn buyer demo (one offer/counter only)
 python m4_adk_multiagents/a2a_protocol_buyer_client_demo.py --seller-url http://127.0.0.1:9102
 ```
 
-**What to expect:**
-- Terminal 1: Server starts, waits. When the buyer connects, you'll see the OpenAI + MCP activity
-- Terminal 2 (orchestrator): Runs a real round loop over HTTP until agreement/withdrawal/deadlock
-- Final output includes ADK session state (round, status, prices)
+**What `--demo` shows (Parts 0–4):**
+- Part 0: LangGraph → ADK+A2A bridge — what changed and why
+- Part 1: `BuyerAgentADK` source — `__init__`, `__aenter__`, `MCPToolset`, `Runner`
+- Part 2: `SellerAgentADK` source — dual `MCPToolset` setup, floor guardrail
+- Part 3: A2A protocol — Agent Card, `SellerADKA2AExecutor.execute()`, response parsing
+- Part 4: M3 vs M4 full comparison table
+
+**What to expect during negotiation:**
+- Terminal 1: Server starts and waits. You'll see `[Seller ADK]` activity as each offer arrives
+- Terminal 2: Each round shows `[Buyer ADK]` MCP + GPT-4o activity, then `[A2A]` HTTP exchange
+- Final result: AGREED, DEADLOCKED, BUYER WALKED AWAY, or SELLER REJECTED
+- ADK session state is printed at the end (round, status, prices)
 
 ---
 

@@ -28,11 +28,52 @@ TRANSPORT:
 """
 
 import argparse
+import inspect
 import random
 import sys
+import textwrap
+import time
 from typing import Optional
 
 from mcp.server.fastmcp import FastMCP
+
+
+# ─── Demo Helpers ─────────────────────────────────────────────────────────────
+
+def _wait(step_mode: bool, prompt: str = "  [ENTER to continue →] ") -> None:
+    if step_mode:
+        input(prompt)
+    else:
+        time.sleep(0.3)
+
+
+def _header(title: str, width: int = 65) -> None:
+    print("\n" + "╔" + "═" * (width - 2) + "╗")
+    pad = (width - 2 - len(title)) // 2
+    print("║" + " " * pad + title + " " * (width - 2 - pad - len(title)) + "║")
+    print("╚" + "═" * (width - 2) + "╝")
+
+
+def _section(title: str, width: int = 65) -> None:
+    print("\n" + "─" * width)
+    print("  " + title)
+    print("─" * width)
+
+
+def _print_source(method, notes: list = None) -> None:
+    raw = inspect.getsource(method)
+    src = textwrap.dedent(raw)
+    lines = src.rstrip().split("\n")
+    print()
+    print("  " + "┄" * 63)
+    for i, line in enumerate(lines, 1):
+        display = line if len(line) <= 90 else line[:87] + "…"
+        print(f"  {i:3d} │ {display}")
+    print("  " + "┄" * 63)
+    if notes:
+        print()
+        for note in notes:
+            print(f"  ▶  {note}")
 
 
 # ─── Initialize Server ────────────────────────────────────────────────────────
@@ -332,16 +373,205 @@ def get_minimum_acceptable_price(property_id: str) -> dict:
     }
 
 
+# ─── Demo Mode ────────────────────────────────────────────────────────────────
+
+def _run_demo(step_mode: bool) -> None:
+    """
+    Walk through the inventory server's tools in teaching mode.
+    Key concept: information asymmetry — one tool is public, one is seller-only.
+    """
+    _header("Real Estate Inventory MCP Server — Information Asymmetry")
+    print("""
+  This server exposes 2 MCP tools:
+    1. get_inventory_level(zip_code)           ← PUBLIC: buyer AND seller can use
+    2. get_minimum_acceptable_price(property_id) ← SELLER ONLY: buyer does NOT connect
+
+  This is INFORMATION ASYMMETRY enforced by MCP access control.
+  In real estate: only the seller's agent knows the seller's floor price.
+  In our system:  the buyer agent simply never connects to this server's
+                  get_minimum_acceptable_price tool.
+
+  In production: MCP auth (API keys, OAuth scopes) would enforce this at the
+                 protocol level — the server rejects unauthorized calls.
+""")
+    _wait(step_mode, "  [ENTER: see the public tool — get_inventory_level() →] ")
+
+    # ── Tool 1: get_inventory_level (public) ──────────────────────────────────
+    _section("Tool 1 of 2: get_inventory_level() — PUBLIC (buyer + seller both call this)")
+    print("""
+  Public market data. Both buyer and seller agents call this to understand
+  market pressure before making or responding to an offer.
+  More listings → buyer has leverage. Fewer listings → seller has leverage.
+""")
+    _print_source(get_inventory_level, notes=[
+        "INVENTORY_DATA dict: deterministic data for 78701/78702/78703 ZIP codes",
+        "Fallback: synthesizes plausible values for unknown ZIPs",
+        "absorption_rate_months: < 2 = hot, > 5 = cold, 2–5 = balanced",
+        "Returns buyer_leverage + expected_price_drop_pct — agent cites these in offers",
+        "Both buyer and seller can call this — no access restriction",
+    ])
+    _wait(step_mode, "  [ENTER: call get_inventory_level('78701') live →] ")
+
+    _section("Live call: get_inventory_level('78701')  [balanced market]")
+    print()
+    result = get_inventory_level("78701")
+    loc = result["location"]
+    act = result["activity_30_days"]
+    tom = result["time_on_market"]
+    pm = result["pricing_metrics"]
+    ma = result["market_assessment"]
+    na = result["negotiation_analysis"]
+    print(f"  location:           {loc['neighborhood']}, {loc['city']}")
+    print(f"  active_listings:    {act['active_listings']}")
+    print(f"  closed_30_days:     {act['closed_sales']}")
+    print(f"  absorption_rate:    {act['absorption_rate_months']} months  ← balanced (2–5 = balanced)")
+    print(f"  avg_days_on_market: {tom['avg_days']}")
+    print(f"  list_to_sale_ratio: {pm['list_to_sale_ratio']}  (homes close at {int(pm['list_to_sale_ratio']*100)}% of list)")
+    print(f"  pct_price_drops:    {pm['pct_with_price_reductions']}% of listings reduced")
+    print()
+    print(f"  market_condition:   {ma['condition']}")
+    print(f"  buyer_leverage:     {na['buyer_leverage']}")
+    print(f"  expected_price_drop:{na['expected_price_drop_pct']}")
+    print(f"  urgency_for_buyer:  {na['urgency_for_buyer']}")
+    print()
+
+    _wait(step_mode, "  [ENTER: compare with a HOT market (78702) →] ")
+    _section("Live call: get_inventory_level('78702')  [hot market — contrast]")
+    print()
+    result2 = get_inventory_level("78702")
+    act2 = result2["activity_30_days"]
+    tom2 = result2["time_on_market"]
+    ma2 = result2["market_assessment"]
+    na2 = result2["negotiation_analysis"]
+    print(f"  location:           {result2['location']['neighborhood']}, {result2['location']['city']}")
+    print(f"  active_listings:    {act2['active_listings']}  (vs 47 in 78701 — far fewer)")
+    print(f"  absorption_rate:    {act2['absorption_rate_months']} months  ← HOT (< 2 months)")
+    print(f"  avg_days_on_market: {tom2['avg_days']}  (vs 22 in 78701)")
+    print(f"  market_condition:   {ma2['condition']}")
+    print(f"  buyer_leverage:     {na2['buyer_leverage']}")
+    print(f"  expected_price_drop:{na2['expected_price_drop_pct']}")
+    print()
+    print("  COMPARE: In a hot market, agents offer differently.")
+    print("  Same tool call, different ZIP code → totally different negotiation strategy.")
+    _wait(step_mode, "  [ENTER: see the seller-only tool — get_minimum_acceptable_price() →] ")
+
+    # ── Tool 2: get_minimum_acceptable_price (seller-only) ────────────────────
+    _section("Tool 2 of 2: get_minimum_acceptable_price() — SELLER ONLY ⚠️")
+    print("""
+  This is the seller's CONFIDENTIAL floor price.
+  In real estate: the seller's agent knows this. The buyer's agent does NOT.
+
+  In our system:
+    seller_adk.py connects to BOTH pricing_server + inventory_server
+    buyer_adk.py  connects ONLY to pricing_server
+
+  That's the information asymmetry: the seller knows their floor.
+  The buyer must guess. This mirrors real negotiations.
+
+  In production MCP systems, this would be protected by:
+    • API keys — buyer's token doesn't grant access to this tool
+    • OAuth scopes — buyer's scope excludes "seller:confidential"
+    • Server-level auth check — call rejected before the function runs
+""")
+    _print_source(get_minimum_acceptable_price, notes=[
+        "SELLER_CONSTRAINTS dict: contains the seller's mortgage payoff requirement",
+        "minimum_acceptable_price: $445,000 — the hard floor (mortgage payoff + costs)",
+        "seller_motivation_level: 'moderate' — seller bought another home, needs proceeds",
+        "concessions_willing_to_make: things seller can offer to close the deal",
+        "strategy_for_seller_agent: pre-computed strategy the seller agent follows",
+        "access_warning field: documents that this is confidential — not just a naming convention",
+    ])
+    _wait(step_mode, "  [ENTER: call get_minimum_acceptable_price() live →] ")
+
+    _section("Live call: get_minimum_acceptable_price('742-evergreen-austin-78701')")
+    print()
+    result3 = get_minimum_acceptable_price("742-evergreen-austin-78701")
+    pc = result3["pricing_constraints"]
+    sp = result3["seller_profile"]
+    st = result3["strategy_for_seller_agent"]
+    print(f"  property_id:            {result3['property_id']}")
+    print(f"  address:                {result3['address']}")
+    print()
+    print(f"  list_price:             ${pc['list_price']:,}")
+    print(f"  minimum_acceptable:     ${pc['minimum_acceptable_price']:,}  ← the floor")
+    print(f"  ideal_closing_price:    ${pc['ideal_closing_price']:,}  ← what seller hopes for")
+    print(f"  negotiation_room:       ${pc['absolute_negotiation_room']:,} ({pc['negotiation_room_pct']}% off list)")
+    print()
+    print(f"  motivation_level:       {sp['motivation_level']}")
+    print(f"  must_close_by:          {sp['must_close_by']}")
+    print(f"  situation:              {sp['situation']}")
+    print()
+    print(f"  floor_price_reasoning:")
+    print(f"    {result3['floor_price_reasoning']}")
+    print()
+    print(f"  strategy_for_seller_agent:")
+    print(f"    floor:              ${st['your_floor']:,}")
+    print(f"    target:             ${st['your_target']:,}")
+    print(f"    recommended_opening:${st['recommended_opening_counter']:,}")
+    print(f"    increment_strategy: {st['increment_strategy']}")
+    print(f"    walk_away_trigger:  {st['walk_away_trigger']}")
+    print()
+    print(f"  ⚠️  {result3['access_warning'][:80]}...")
+    _wait(step_mode, "  [ENTER: see the information asymmetry summary →] ")
+
+    # ── Information asymmetry summary ─────────────────────────────────────────
+    _section("Information Asymmetry — The Teaching Point")
+    print("""
+  ╔══════════════════════════╦═══════════════════╦═══════════════════╗
+  ║ Tool                     ║  Buyer agent      ║  Seller agent     ║
+  ╠══════════════════════════╬═══════════════════╬═══════════════════╣
+  ║ get_market_price         ║  ✓ can call       ║  ✓ can call       ║
+  ║ calculate_discount       ║  ✓ can call       ║  ✓ can call       ║
+  ║ get_inventory_level      ║  ✓ can call       ║  ✓ can call       ║
+  ║ get_minimum_acceptable_  ║  ✗ no access      ║  ✓ can call       ║
+  ║   price                  ║                   ║                   ║
+  ╚══════════════════════════╩═══════════════════╩═══════════════════╝
+
+  The buyer must INFER the seller's floor through negotiation.
+  The seller KNOWS their floor and can accept instantly when buyer reaches it.
+
+  This asymmetry is enforced by which MCPToolsets each agent creates:
+    buyer_adk.py:   MCPToolset(pricing_server) only
+    seller_adk.py:  MCPToolset(pricing_server) + MCPToolset(inventory_server)
+
+  The seller sees 4 tools. The buyer sees 2. Same protocol. Different access.
+""")
+
+
 # ─── Entry Point ──────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="Real Estate Inventory MCP Server"
+        description="Real Estate Inventory MCP Server — stdio, SSE, and demo modes",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  python inventory_server.py              # demo mode (default when run in a terminal)
+  python inventory_server.py --fast       # demo without pauses
+  python inventory_server.py --check      # verify server loads correctly
+  python inventory_server.py --sse --port 8002  # HTTP/SSE server mode
+  python inventory_server.py --server     # force stdio server mode (agents use this automatically)
+""",
     )
     parser.add_argument(
         "--check",
         action="store_true",
         help="Import check: verify server loads correctly then exit 0. No network I/O.",
+    )
+    parser.add_argument(
+        "--demo",
+        action="store_true",
+        help="Run interactive teaching demo (default when run in a terminal — kept for compatibility)",
+    )
+    parser.add_argument(
+        "--fast",
+        action="store_true",
+        help="Disable step pauses in demo mode",
+    )
+    parser.add_argument(
+        "--server",
+        action="store_true",
+        help="Force stdio server mode (normally auto-detected when spawned as a subprocess)",
     )
     parser.add_argument(
         "--sse",
@@ -373,7 +603,16 @@ if __name__ == "__main__":
         mcp.settings.port = args.port
         print(f"Real Estate Inventory MCP Server (SSE mode)")
         print(f"   Listening on: http://{args.host}:{args.port}/sse")
+        print(f"   Tools: get_inventory_level, get_minimum_acceptable_price")
+        print(f"   ⚠️  get_minimum_acceptable_price is seller-confidential — buyer should not connect here.")
+        print(f"   Ctrl+C to stop.")
         mcp.run(transport="sse")
-    else:
-        # stdio mode: spawned subprocess transport (default for in-process agent orchestration).
+    elif args.server or not sys.stdin.isatty():
+        # stdio server mode: either explicitly requested (--server) or auto-detected because
+        # stdin is a pipe — meaning an agent spawned this process as a subprocess.
         mcp.run()
+    else:
+        # Interactive terminal (default): run the teaching demo.
+        # Students can run: python inventory_server.py
+        # --demo flag is accepted as an alias for backwards compatibility.
+        _run_demo(step_mode=not args.fast)

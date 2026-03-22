@@ -41,6 +41,7 @@ USAGE:
 
 import asyncio
 import operator
+import time
 from typing import Annotated, Literal, Optional, TypedDict
 
 from langgraph.graph import StateGraph, END
@@ -48,6 +49,73 @@ from langgraph.graph import StateGraph, END
 from m3_langgraph_multiagents.buyer_simple import BuyerAgent
 from m3_langgraph_multiagents.seller_simple import SellerAgent
 from m3_langgraph_multiagents.negotiation_types import NegotiationStatus
+
+
+# ─── Turn Display Helpers ─────────────────────────────────────────────────────
+
+def _turn_header(agent: str, round_num: int, width: int = 65) -> None:
+    icon = "🏠 BUYER" if agent == "buyer" else "🏡 SELLER"
+    label = f"  Round {round_num} — {icon}  "
+    bar = "═" * ((width - len(label)) // 2)
+    print(f"\n╔{bar}{label}{bar}╗")
+
+
+def _turn_box(speaker: str, price: Optional[float], msg_type: str, message: str,
+              mcp_calls: list[str] = None, reasoning: str = None) -> None:
+    width = 63
+    price_str = f"  💰 Price:    ${price:,.0f}" if price else ""
+    print(f"  ┌─ {speaker} ({'offer' if speaker == 'Buyer' else 'counter'}) " + "─" * (width - len(speaker) - 14))
+    print(f"  │  Type:     {msg_type}")
+    if price_str:
+        print(f"  │{price_str}")
+    if mcp_calls:
+        print(f"  │  MCP:      {', '.join(mcp_calls)}")
+    # Wrap message nicely
+    words = message.split()
+    lines, current = [], []
+    for word in words:
+        if sum(len(w) + 1 for w in current) + len(word) > 55:
+            lines.append(" ".join(current))
+            current = [word]
+        else:
+            current.append(word)
+    if current:
+        lines.append(" ".join(current))
+    for i, line in enumerate(lines[:4]):
+        prefix = "  │  Message: " if i == 0 else "  │           "
+        print(f"{prefix}{line}")
+    if reasoning:
+        short_reasoning = reasoning[:70] + ("..." if len(reasoning) > 70 else "")
+        print(f"  │  Reasoning:{short_reasoning}")
+    print(f"  └" + "─" * width)
+
+
+def _wait_step(state: dict) -> None:
+    """Pause between turns if step_mode is active."""
+    if state.get("step_mode", False):
+        input("  [ENTER: next turn →] ")
+    else:
+        time.sleep(0.1)
+
+
+def _negotiation_banner(state: dict) -> None:
+    width = 65
+    print("\n" + "╔" + "═" * (width - 2) + "╗")
+    title = "LangGraph Negotiation — Live Turns"
+    pad = (width - 2 - len(title)) // 2
+    print("║" + " " * pad + title + " " * (width - 2 - pad - len(title)) + "║")
+    print("╚" + "═" * (width - 2) + "╝")
+    print(f"""
+  Property:      {state.get('property_address', '742 Evergreen Terrace')}
+  Listed at:     ${state.get('listing_price', 485_000):,.0f}
+  Buyer budget:  ${state.get('buyer_budget', 460_000):,.0f}  (hard ceiling)
+  Seller floor:  ${state.get('seller_minimum', 445_000):,.0f}  (mortgage payoff)
+  Max rounds:    {state.get('max_rounds', 5)}
+
+  Watch two layers simultaneously:
+    AGENT LAYER  — what buyer and seller say + MCP tools they call
+    GRAPH LAYER  — which LangGraph node runs + routing decisions
+""")
 
 
 # ─── Shared State ─────────────────────────────────────────────────────────────
@@ -114,6 +182,9 @@ class NegotiationState(TypedDict):
     _buyer_agent_ref: Optional[object]
     _seller_agent_ref: Optional[object]
 
+    # ── Demo control ──────────────────────────────────────────────────────────
+    step_mode: bool  # If True, pause and wait for ENTER between turns
+
 
 def initial_state(
     session_id: str = "neg_001",
@@ -122,6 +193,7 @@ def initial_state(
     buyer_budget: float = 460_000,
     seller_minimum: float = 445_000,
     max_rounds: int = 5,
+    step_mode: bool = False,
 ) -> dict:
     """
     Create the initial state for a new negotiation.
@@ -148,6 +220,7 @@ def initial_state(
         "history": [],  # Will be appended to by nodes
         "_buyer_agent_ref": None,
         "_seller_agent_ref": None,
+        "step_mode": step_mode,
     }
 
 
@@ -168,17 +241,19 @@ async def initialize_agents_node(state: dict) -> dict:
     a dedicated initialization node that runs exactly once.
     """
     session_id = state["session_id"]
-    print("\n[LangGraph] Initializing agents...")
+
+    _negotiation_banner(state)
+
+    print("  [Graph] INIT NODE: Creating BuyerAgent and SellerAgent...")
+    print("  [Graph] Both agents will connect to MCP servers on demand.")
+    print("  [Graph] This node runs ONCE — agents are reused across all rounds.")
+    if state.get("step_mode"):
+        input("\n  [ENTER: start negotiation →] ")
 
     buyer_agent = BuyerAgent(session_id=session_id)
     seller_agent = SellerAgent(session_id=session_id)
 
-    print("[LangGraph] Agents initialized. Starting negotiation.")
-    print(f"[LangGraph] Property: {state['property_address']}")
-    print(f"[LangGraph] Listed at: ${state['listing_price']:,.0f}")
-    print(f"[LangGraph] Buyer budget: ${state['buyer_budget']:,.0f}")
-    print(f"[LangGraph] Seller minimum: ${state['seller_minimum']:,.0f}")
-    print(f"[LangGraph] Max rounds: {state['max_rounds']}")
+    print("  [Graph] Agents initialized. Graph will now route: init → buyer → seller → ...")
 
     return {
         "_buyer_agent_ref": buyer_agent,
@@ -208,34 +283,49 @@ async def buyer_node(state: dict) -> dict:
     buyer_agent: BuyerAgent = state["_buyer_agent_ref"]
     round_number = state["round_number"]
     last_seller_msg_dict = state.get("last_seller_message")
+    this_round = round_number + 1
 
-    print(f"\n[LangGraph] -> BUYER NODE (Round {round_number + 1})")
+    _turn_header("buyer", this_round)
+    print(f"  [Graph] BUYER NODE — LangGraph routed here from {'init' if last_seller_msg_dict is None else 'seller'}")
+    print(f"  [Graph] Buyer agent will call MCP tools, then GPT-4o decides the offer")
 
     try:
         if last_seller_msg_dict is None:
-            # First round — make initial offer
             buyer_message = await buyer_agent.make_initial_offer()
         else:
-            # Subsequent rounds — respond to seller's counter
             buyer_message = await buyer_agent.respond_to_counter(last_seller_msg_dict)
 
     except Exception as e:
-        print(f"[LangGraph] ERROR in buyer agent: {e}")
+        print(f"  [Graph] ERROR in buyer agent: {e}")
         return {
             "status": "error",
-            "history": [{"round": round_number + 1, "agent": "buyer", "error": str(e)}],
+            "history": [{"round": this_round, "agent": "buyer", "error": str(e)}],
         }
 
-    # Determine status from the message type
+    # Determine status from message type
     new_status = state["status"]
     if buyer_message["message_type"] == "WITHDRAW":
         new_status = "buyer_walked"
-        print(f"[LangGraph] Buyer is walking away")
     elif buyer_message["message_type"] == "ACCEPT":
         new_status = "agreed"
-        print(f"[LangGraph] Buyer accepts at ${buyer_message.get('price', 0):,.0f}")
 
-    # History entry for this round
+    # Display the turn visually
+    mcp_calls = ["get_market_price", "calculate_discount"] if this_round == 1 else ["calculate_discount"]
+    _turn_box(
+        speaker="Buyer",
+        price=buyer_message.get("price"),
+        msg_type=buyer_message["message_type"],
+        message=buyer_message.get("message", ""),
+        mcp_calls=mcp_calls,
+    )
+
+    # Show routing decision
+    route = "END (walk-away)" if new_status == "buyer_walked" else \
+            "END (accepted)" if new_status == "agreed" else \
+            "→ seller node"
+    print(f"\n  [Graph] route_after_buyer() → {route}")
+    _wait_step(state)
+
     history_entry = {
         "round": buyer_message["round"],
         "agent": "buyer",
@@ -250,7 +340,7 @@ async def buyer_node(state: dict) -> dict:
         "status": new_status,
         "agreed_price": buyer_message.get("price") if new_status == "agreed" else state.get("agreed_price"),
         "last_buyer_message": buyer_message,
-        "history": [history_entry],  # Reducer appends this
+        "history": [history_entry],
     }
 
 
@@ -270,18 +360,20 @@ async def seller_node(state: dict) -> dict:
     round_number = state["round_number"]
     last_buyer_msg_dict = state.get("last_buyer_message")
 
-    print(f"\n[LangGraph] -> SELLER NODE (Round {round_number})")
+    _turn_header("seller", round_number)
+    print(f"  [Graph] SELLER NODE — LangGraph routed here from buyer node")
+    print(f"  [Graph] Seller connects to BOTH MCP servers (pricing + inventory)")
+    print(f"  [Graph] Seller's floor price is seller-confidential — buyer can't see it")
 
     if last_buyer_msg_dict is None:
-        # Shouldn't happen -- seller always responds to buyer
-        print("[LangGraph] WARN: No buyer message to respond to")
+        print("  [Graph] WARN: No buyer message to respond to")
         return {"status": "error"}
 
     try:
         seller_message = await seller_agent.respond_to_offer(last_buyer_msg_dict)
 
     except Exception as e:
-        print(f"[LangGraph] ERROR in seller agent: {e}")
+        print(f"  [Graph] ERROR in seller agent: {e}")
         return {
             "status": "error",
             "history": [{"round": round_number, "agent": "seller", "error": str(e)}],
@@ -293,16 +385,30 @@ async def seller_node(state: dict) -> dict:
 
     if seller_message["message_type"] == "ACCEPT":
         new_status = "agreed"
-        agreed_price = last_buyer_msg_dict.get("price")  # Seller accepted buyer's price
-        print(f"[LangGraph] Seller accepts at ${agreed_price:,.0f}")
+        agreed_price = last_buyer_msg_dict.get("price")
     elif seller_message["message_type"] == "REJECT":
         new_status = "seller_rejected"
-        print(f"[LangGraph] Seller rejects")
 
     # Deadlock guard: if still negotiating at round limit, force terminal state.
     if round_number >= state["max_rounds"] and new_status == "negotiating":
         new_status = "deadlocked"
-        print(f"[LangGraph] Max rounds reached -- deadlock")
+
+    # Display the turn visually
+    mcp_calls = ["get_market_price", "get_inventory_level", "get_minimum_acceptable_price"]
+    _turn_box(
+        speaker="Seller",
+        price=seller_message.get("price"),
+        msg_type=seller_message["message_type"],
+        message=seller_message.get("message", ""),
+        mcp_calls=mcp_calls,
+    )
+
+    # Show routing decision
+    route = "END (deal!)" if new_status == "agreed" else \
+            "END (rejected)" if new_status in ("seller_rejected", "deadlocked") else \
+            "→ buyer node (loop)"
+    print(f"\n  [Graph] route_after_seller() → {route}")
+    _wait_step(state)
 
     history_entry = {
         "round": seller_message["round"],
@@ -312,13 +418,12 @@ async def seller_node(state: dict) -> dict:
         "message": seller_message.get("message", "")[:200],
     }
 
-    # Return only changed fields; LangGraph merges these into the shared state.
     return {
         "seller_current_counter": seller_message.get("price") or state["seller_current_counter"],
         "status": new_status,
         "agreed_price": agreed_price,
         "last_seller_message": seller_message,
-        "history": [history_entry],  # Reducer appends this
+        "history": [history_entry],
     }
 
 
@@ -438,53 +543,59 @@ def create_negotiation_graph() -> StateGraph:
 
 def print_negotiation_results(final_state: dict) -> None:
     """Display the final negotiation results and history."""
-
-    print("\n" + "=" * 65)
-    print("NEGOTIATION COMPLETE -- LangGraph Orchestrated")
-    print("=" * 65)
+    width = 65
+    print("\n" + "╔" + "═" * (width - 2) + "╗")
+    title = "NEGOTIATION COMPLETE — LangGraph Orchestrated"
+    pad = (width - 2 - len(title)) // 2
+    print("║" + " " * pad + title + " " * (width - 2 - pad - len(title)) + "║")
+    print("╚" + "═" * (width - 2) + "╝")
 
     status = final_state.get("status", "unknown")
     agreed_price = final_state.get("agreed_price")
     listing_price = final_state.get("listing_price", 485_000)
+    history = final_state.get("history", [])
+    rounds_used = final_state.get("round_number", 0)
 
-    # Outcome
-    outcome_icons = {
-        "agreed": "[OK] DEAL REACHED",
-        "buyer_walked": "BUYER WALKED AWAY",
-        "deadlocked": "DEADLOCK -- MAX ROUNDS REACHED",
-        "seller_rejected": "SELLER REJECTED",
-        "error": "ERROR",
+    # Outcome banner
+    outcome_map = {
+        "agreed":          "  DEAL REACHED",
+        "buyer_walked":    "  BUYER WALKED AWAY",
+        "deadlocked":      "  DEADLOCK — MAX ROUNDS REACHED",
+        "seller_rejected": "  SELLER REJECTED",
+        "error":           "  ERROR",
     }
-    print(f"\nOutcome: {outcome_icons.get(status, status.upper())}")
+    print(f"\n  Outcome:    {outcome_map.get(status, status.upper())}")
+    print(f"  Rounds:     {rounds_used} of {final_state.get('max_rounds', 5)} used")
+    print(f"  Messages:   {len(history)}")
 
     if agreed_price:
         savings = listing_price - agreed_price
         savings_pct = savings / listing_price * 100
-        print(f"Agreed Price:  ${agreed_price:,.0f}")
-        print(f"Listed Price:  ${listing_price:,.0f}")
-        print(f"Buyer Saved:   ${savings:,.0f} ({savings_pct:.1f}% below listing)")
-
-    # Round summary
-    history = final_state.get("history", [])
-    rounds_used = final_state.get("round_number", 0)
-    print(f"\nRounds Used: {rounds_used} of {final_state.get('max_rounds', 5)}")
-    print(f"Messages: {len(history)}")
+        print(f"\n  Listed at:  ${listing_price:,.0f}")
+        print(f"  Agreed at:  ${agreed_price:,.0f}")
+        print(f"  Buyer saved: ${savings:,.0f}  ({savings_pct:.1f}% below listing)")
 
     # History table
     if history:
-        print("\nNEGOTIATION HISTORY:")
-        print(f"  {'Rnd':>3} {'Agent':>8} {'Type':>16} {'Price':>12}")
-        print("  " + "-" * 45)
+        print(f"\n  {'Rnd':>3}  {'Agent':>8}  {'Type':>16}  {'Price':>12}")
+        print("  " + "─" * 46)
         for entry in history:
             price_str = f"${entry.get('price', 0):,.0f}" if entry.get("price") else "—"
+            msg_preview = entry.get("message", "")[:30] + "..." if entry.get("message") else ""
             print(
-                f"  {entry.get('round', 0):>3} "
-                f"{entry.get('agent', ''):>8} "
-                f"{entry.get('message_type', ''):>16} "
+                f"  {entry.get('round', 0):>3}  "
+                f"{entry.get('agent', ''):>8}  "
+                f"{entry.get('message_type', ''):>16}  "
                 f"{price_str:>12}"
             )
 
-    print("\n" + "=" * 65)
+    print("\n" + "╔" + "═" * (width - 2) + "╗")
+    print("║  LangGraph concepts demonstrated:                             ║")
+    print("║    StateGraph  — one shared state, all nodes read/write it    ║")
+    print("║    Reducer     — history[] appended, never replaced           ║")
+    print("║    Cond. edges — route_after_buyer/seller picked each turn    ║")
+    print("║    Async nodes — MCP + LLM calls inside async def node()      ║")
+    print("╚" + "═" * (width - 2) + "╝")
 
 
 # ─── Standalone Runner ────────────────────────────────────────────────────────
@@ -496,6 +607,7 @@ async def run_negotiation(
     buyer_budget: float = 460_000,
     seller_minimum: float = 445_000,
     max_rounds: int = 5,
+    step_mode: bool = False,
 ) -> dict:
     """
     Run a complete negotiation using the LangGraph workflow.
@@ -511,10 +623,6 @@ async def run_negotiation(
     following all conditional edges until a terminal state is reached.
     The returned dict is the FINAL state after all nodes have run.
     """
-    print("\n" + "=" * 65)
-    print("REAL ESTATE NEGOTIATION -- LangGraph Version")
-    print("=" * 65)
-
     # Build the graph
     graph = create_negotiation_graph()
 
@@ -526,10 +634,8 @@ async def run_negotiation(
         buyer_budget=buyer_budget,
         seller_minimum=seller_minimum,
         max_rounds=max_rounds,
+        step_mode=step_mode,
     )
-
-    print(f"\nStarting negotiation for: {property_address}")
-    print(f"Listing: ${listing_price:,.0f} | Buyer budget: ${buyer_budget:,.0f} | Max rounds: {max_rounds}")
 
     # Run the graph
     # ainvoke() runs the full graph asynchronously

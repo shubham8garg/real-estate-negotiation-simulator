@@ -122,21 +122,35 @@ graph.add_conditional_edges("buyer", route_after_buyer, {
 
 ## How to run
 
+Requires `OPENAI_API_KEY`. Demo mode (code walkthroughs) only runs with `--demo`.
+
 ```bash
-# Full negotiation (needs OPENAI_API_KEY)
+# With full code walkthrough + live negotiation (step-by-step pauses)
+python m3_langgraph_multiagents/main_langgraph_multiagent.py --demo
+
+# With walkthrough, no pauses
+python m3_langgraph_multiagents/main_langgraph_multiagent.py --demo --fast
+
+# Skip code walkthroughs, just run the negotiation
 python m3_langgraph_multiagents/main_langgraph_multiagent.py
 
-# Options
-python m3_langgraph_multiagents/main_langgraph_multiagent.py --rounds 3     # fewer rounds
-python m3_langgraph_multiagents/main_langgraph_multiagent.py --rounds 5     # default
+# Adjust number of rounds
+python m3_langgraph_multiagents/main_langgraph_multiagent.py --rounds 3
+python m3_langgraph_multiagents/main_langgraph_multiagent.py --demo --rounds 8
 ```
 
-**What to expect:**
-- Both agents start up and connect to MCP servers
-- You'll see each round printed: buyer offer, seller counter, prices converging
-- Final result: AGREED at some price, or DEADLOCKED if max rounds hit
-- The buyer should land somewhere between $425K (start) and $460K (budget)
-- The seller should hold above $445K (floor)
+**What `--demo` shows (Parts 0–4):**
+- Part 0: FSM → LangGraph bridge — what changed and why
+- Part 1: `NegotiationMessage` and `NegotiationState` TypedDict source
+- Part 2: `BuyerAgent` source — `__init__`, MCP planner, offer logic
+- Part 3: `SellerAgent` source — dual MCP connections, floor guardrail
+- Part 4: LangGraph graph wiring — `StateGraph`, nodes, conditional edges
+
+**What to expect during negotiation:**
+- Both agents connect to MCP servers automatically (no manual setup needed)
+- Each round is printed with a visual turn box: type, price, message
+- Final result: AGREED at some price, DEADLOCKED if max rounds hit, or BUYER WALKED AWAY
+- The buyer stays under $460K (budget); the seller holds above $445K (floor)
 
 ---
 
